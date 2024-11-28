@@ -8,8 +8,7 @@ using System.Text.RegularExpressions;
  * Posted by: https://codereview.stackexchange.com/users/109745/benkoshy
  * Code reference: https://gist.github.com/benkoshy/7f6f28e158032534615773a9a1f73a10
  *         Author: https://github.com/benkoshy
- *          Email: ben.chenathara@gmail.com
- * Extended by Walter Holm (walter.holm@dijkstrasolutions.com) from Dijkstra Solutions Company
+ * Extended by Walter Holm from Dijkstra Solutions Company
  */
 
 namespace dsc_public
@@ -257,8 +256,10 @@ namespace dsc_public
                         if (match != "")
                         {
                             Console.WriteLine();
-                            int xchars = GetLastVerbLength();
-                            _builder.Append(match[xchars..] + " ");
+                            //int xchars = GetLastVerbLength(); //This allowed completion and not replacement
+                            //_builder.Append(match[xchars..] + " "); //This allowed completion and not replacement, maybe this should be an option?
+                            _builder.Clear();
+                            _builder.Append(match + " ");
                             _CursorRow = _builder.Length + Prompt.Length;
                         }
 
@@ -352,10 +353,18 @@ namespace dsc_public
                 this.AutocompleteTree.Add(addCLIVerb);
             }
         }
+        ///
         public class CLIVerb
         {
             public string CompleteName { get; set; } = "";
             public string DisplayName { get; set; } = "";
+            /// <summary>
+            /// Regex examples:
+            ///   Autocomplete for today:
+            ///     ^tod?a?y?$
+            ///     If you type at least to and press tab, it will autocomplete to today
+            /// Simple way to use AutoComplete is just put the first couple of letters in the same Regex property such as: to
+            /// </summary>
             public string Regex { get; set; } = "";
             public string Help { get; set; } = "";
             public string Description { get; set; } = "";
