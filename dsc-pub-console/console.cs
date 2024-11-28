@@ -27,7 +27,9 @@ namespace dsc_public
             }
 
             public string Prompt = "";
-
+            /// <summary>
+            /// Default Help Char is ?, you can change this
+            /// </summary>
             public char SingleHelpChar = '?';
 
             public List<string> ReservedList = new List<string>();
@@ -256,9 +258,8 @@ namespace dsc_public
                         if (match != "")
                         {
                             Console.WriteLine();
-                            //int xchars = GetLastVerbLength(); //This allowed completion and not replacement
-                            //_builder.Append(match[xchars..] + " "); //This allowed completion and not replacement, maybe this should be an option?
-                            _builder.Clear();
+                            int xchars = GetLastVerbLength();
+                            _builder.Length = (_builder.Length - xchars); //this replaces characters typed at this level of the verb
                             _builder.Append(match + " ");
                             _CursorRow = _builder.Length + Prompt.Length;
                         }
