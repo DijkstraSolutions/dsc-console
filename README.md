@@ -13,6 +13,7 @@ For example:
 
 If I want to AutoComplete for command "today tomorrow yesterday" I would do it this way:
 
+```c#
 CLIVerb newVerb3 = new CLIVerb("yesterday", "^yes?t?e?r?d?a?y?$", "This is a description for using yesterday", "yesterday");
 
 CLIVerb newVerb2 = new CLIVerb("tomorrow", "^to?m?o?r?r?o?w?$", "This is a description for using tomorrow", "tomorrow");
@@ -22,6 +23,7 @@ CLIVerb newVerb1 = new CLIVerb("today", "^tod?a?y?$", "This is a description for
 newVerb1.AddSubVerb(newVerb2)
 
 myconsole.AddVerb(newVerb1);
+```
 
 AutoComplete will only follow the appropriate AutoComplete for that respective verb parent at the current level. This is
 important because today and tomorrow above both can AutoComplete after to based on the regex.
