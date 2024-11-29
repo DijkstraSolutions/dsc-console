@@ -4,7 +4,7 @@ Provides a means to add "verbs" and nested "verbs" to your command line applicat
 
 This project will build a DLL that you can include in your project.
 
-See Example.cs on how to do an easy one level implementation.
+See [Example.cs](./Example.cs) on how to do an easy one level implementation.
 
 To nest, you might want to work backwards, start with the AutoCompletes at the end of the command
 and just do the verbs for that level, move back one level and add the subverbs to that previous level
