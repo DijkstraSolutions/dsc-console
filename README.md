@@ -2,10 +2,6 @@
 
 Provides a means to add "verbs" and nested "verbs" to your command line application.
 
-An embracement and extension of:
-
-https://gist.github.com/benkoshy/7f6f28e158032534615773a9a1f73a10 by Ben Koshy (https://github.com/benkoshy)
-
 This project will build a DLL that you can include in your project.
 
 See Example.cs on how to do an easy one level implementation.
@@ -29,3 +25,6 @@ myconsole.AddVerb(newVerb1);
 
 AutoComplete will only follow the appropriate AutoComplete for that respective verb parent at the current level. This is
 important because today and tomorrow above both can AutoComplete after to based on the regex.
+
+The author, Walter Holm, wishes to acknowledge some of the ideas noted in this [gist](https://gist.github.com/benkoshy/7f6f28e158032534615773a9a1f73a10) by [Ben Koshy](https://github.com/benkoshy) as a crude inspiration. 
+
