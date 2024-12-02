@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.Diagnostics.SymbolStore;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -43,12 +44,40 @@ namespace dsc_public
             private int _CursorRow = Console.CursorTop;
             private int _CursorColumn = Console.CursorLeft;
             private int _InsertAt = 0;
-
-            public bool StartAutoConsole(bool noCRLF = false, bool debug = false)
+            private int _Position = 0;
+            public bool Debug
             {
+                get
+                {
+                    return _Debug;
+                }
+                set
+                {
+                    _Debug = value;
+                }
+            }
+            private bool _Debug = false;
+            public bool DebugPosition = false;
+
+            private void PrintDebugPosition()
+            {
+                var (saveLeft, saveTop) = Console.GetCursorPosition();
+                int LeftPosition = (Console.WindowWidth - _Position.ToString().Length - saveLeft.ToString().Length - 4);
+
+                Console.SetCursorPosition(0, 0);
+                Console.Write(new string(' ', Console.WindowWidth));
+                Console.SetCursorPosition(LeftPosition, 0);
+                Console.Write($"[{saveLeft}][{_Position}]");
+                Console.SetCursorPosition(saveLeft, saveTop);
+            }
+
+            public bool StartAutoConsole(string SetBuffer = "", bool noCRLF = false, bool debug = false)
+            {
+                _Debug = debug;
+
                 try
                 {
-                    _builder = new StringBuilder();
+                    _builder = new StringBuilder(SetBuffer);
 
                     if (debug)
                         Console.WriteLine("Help Character is " + this.SingleHelpChar.ToString());
@@ -56,13 +85,30 @@ namespace dsc_public
                     _CursorRow = Console.CursorTop;
                     _CursorColumn = Console.CursorLeft;
 
-                    Console.Write(Prompt);
+                    _Position = this.Prompt.Length + _builder.Length;
+
+                    if (DebugPosition)
+                    {
+                        //advance the line to leave room for the counter
+                        Console.WriteLine();
+                    }
+
+                    Console.Write($"{Prompt}{_builder}");
+
+                    if (DebugPosition)
+                        PrintDebugPosition();
+
                     ConsoleKeyInfo capturedCharacter = new ConsoleKeyInfo();
 
                     while (EnterIsNotThe(capturedCharacter) && NotSingleHelpChar(capturedCharacter))
                     {
+                        _Position = this.Prompt.Length + _builder.Length;
                         capturedCharacter = Console.ReadKey(intercept: true);
+                        _Position = this.Prompt.Length + _builder.Length;
                         this.HandleKeyInput(capturedCharacter);
+                        _Position = this.Prompt.Length + _builder.Length;
+                        if (DebugPosition)
+                            PrintDebugPosition();
                     }
 
                     if (NotSingleHelpChar(capturedCharacter))
