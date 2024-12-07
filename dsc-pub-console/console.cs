@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics.SymbolStore;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -27,6 +28,29 @@ namespace dsc_public
                 }
             }
 
+            /// <summary>
+            /// Intended to expand all verbs even if not completed by user input
+            /// Any unrecognized input is untouched
+            /// </summary>
+            public string LastCompleteVerbPhrase
+            {
+                get
+                {
+                    StringBuilder Result = new StringBuilder(this._builder.ToString().Trim());
+
+                    string match = ExtractMatch().Trim();
+
+                    if (match != "")
+                    {
+                        int xchars = GetLastVerbLength();
+                        Result.Length = (Result.Length - xchars); //this replaces characters typed at this level of the verb
+                        Result.Append(match + " ");
+                    }
+
+                    return Result.ToString();
+                }
+            }
+
             public string Prompt = "";
             /// <summary>
             /// Default Help Char is ?, you can change this
@@ -38,6 +62,14 @@ namespace dsc_public
             private StringBuilder _builder = new StringBuilder();
 
             private List<string> _CommandList = new List<string>();
+
+            public int MaxCommandLength
+            {
+                get
+                {
+                    return _MaxCommandLength;
+                }
+            }
 
             private int _CommandIndex = 0;
 
@@ -58,6 +90,7 @@ namespace dsc_public
             }
             private bool _Debug = false;
             public bool DebugPosition = false;
+            private int _MaxCommandLength = 0;
 
             private void PrintDebugPosition()
             {
@@ -70,7 +103,6 @@ namespace dsc_public
                 Console.Write($"[{saveLeft}][{_Position}]");
                 Console.SetCursorPosition(saveLeft, saveTop);
             }
-
             public bool StartAutoConsole(string SetBuffer = "", bool noCRLF = false, bool debug = false)
             {
                 _Debug = debug;
@@ -388,23 +420,31 @@ namespace dsc_public
             public void AddVerb(string addVerb)
             {
                 CLIVerb simpleVerb = new CLIVerb(addVerb);
-                this.AutocompleteTree.Add(simpleVerb);
+
+                this.AddVerb(simpleVerb);
             }
             public void AddVerb(string newVerb, string newRegex, string newHelp)
             {
                 CLIVerb addCLIVerb = new CLIVerb(newVerb, newRegex, newHelp);
-                this.AutocompleteTree.Add(addCLIVerb);
+
+                this.AddVerb(addCLIVerb);
             }
             public void AddVerb(CLIVerb addCLIVerb)
             {
+                if (addCLIVerb.CompleteName.Length > this._MaxCommandLength) { _MaxCommandLength = addCLIVerb.CompleteName.Length; }
+
                 this.AutocompleteTree.Add(addCLIVerb);
             }
         }
         ///
-        public class CLIVerb
+        public class CLIVerb : IComparable<CLIVerb>
         {
             public string CompleteName { get; set; } = "";
             public string DisplayName { get; set; } = "";
+            public string Usage { get; set; } = "";
+            public int GroupID { get; set; } = 10;
+            public int OrderID { get; set; } = 1;
+
             /// <summary>
             /// Regex examples:
             ///   Autocomplete for today:
@@ -444,15 +484,46 @@ namespace dsc_public
                 CompleteName = completename;
                 Regex = regex;
                 Help = help;
-                DisplayName = displayname;
+                if (displayname == "")
+                    DisplayName = completename;
+                else
+                    DisplayName = displayname;
                 AddDebug("Initialized with completename,regex,help");
             }
 
             public CLIVerb(string completename, string regex, string displayname = "")
             {
                 CompleteName = completename;
+                if (displayname == "")
+                    DisplayName = completename;
+                else
+                    DisplayName = displayname;
                 Regex = regex;
                 AddDebug("Initialized with completename,regex");
+            }
+
+            public CLIVerb(string completename, string regex, string help, int OrderID, int GroupID = 10)
+            {
+                CompleteName = completename;
+                DisplayName = completename;
+                Help = help;
+                Regex = regex;
+                Usage = completename;
+                this.OrderID = OrderID;
+                this.GroupID = GroupID;
+                AddDebug("Initialized with completename,regex,help,orderid,groupid");
+            }
+
+            public CLIVerb(string completename, string regex, string help, string usage, int OrderID, int GroupID = 10)
+            {
+                CompleteName = completename;
+                DisplayName = completename;
+                Help = help;
+                Regex = regex;
+                Usage = usage;
+                this.OrderID = OrderID;
+                this.GroupID = GroupID;
+                AddDebug("Initialized with completename,regex,help,usage,orderid,groupid"); ;
             }
 
             public CLIVerb(string completename, string displayname = "")
@@ -570,6 +641,21 @@ namespace dsc_public
             public void AddSubVerb(CLIVerb newSubVerb)
             {
                 CLISubVerbs.Add(newSubVerb);
+            }
+
+            public int CompareTo(CLIVerb other)
+            {
+                if (other == null) return 1;
+
+                int groupComparison = this.GroupID.CompareTo(other.GroupID);
+                if (groupComparison != 0)
+                {
+                    return groupComparison;
+                }
+                else
+                {
+                    return this.OrderID.CompareTo(other.OrderID);
+                }
             }
 
             /*
