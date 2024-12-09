@@ -17,8 +17,45 @@ namespace dsc_public
 {
     namespace console
     {
+        public class ForeBack
+        {
+            public ConsoleColor FG { get; set; } = ConsoleColor.Gray;
+            public ConsoleColor BG { get; set; } = ConsoleColor.Black;
+        }
+        public class Colors
+        {
+            public ForeBack Main { get; set; } = new ForeBack();
+            public ForeBack Help { get; set; } = new ForeBack();
+            public ForeBack Error { get; set; } = new ForeBack();
+            public ForeBack Warning { get; set; } = new ForeBack();
+            public ForeBack Prompt { get; set; } = new ForeBack();
+            public ForeBack Input { get; set; } = new ForeBack();
+            public ForeBack Debug { get; set; } = new ForeBack();
+
+            public Colors()
+            {
+                Main.FG = ConsoleColor.Gray;
+                Main.BG = ConsoleColor.Black;
+                Help.FG = ConsoleColor.Yellow;
+                Help.BG = ConsoleColor.Black;
+                Error.FG = ConsoleColor.Cyan;
+                Error.BG = ConsoleColor.Black;
+                Warning.FG = ConsoleColor.Red;
+                Warning.BG = ConsoleColor.Black;
+                Prompt.FG = ConsoleColor.Gray;
+                Prompt.BG = ConsoleColor.Black;
+                Input.FG = ConsoleColor.Gray;
+                Input.BG = ConsoleColor.Black;
+                Debug.FG = ConsoleColor.Magenta;
+                Debug.BG = ConsoleColor.Black;
+            }
+        }
+
+
+
         public class AutoConsole
         {
+            public Colors ConsoleColors { get; set; } = new Colors();
             public List<CLIVerb> AutocompleteTree { get; set; } = new List<CLIVerb>();
             public string LastCaptured
             {
@@ -109,7 +146,12 @@ namespace dsc_public
 
                 try
                 {
+                    ConsoleColors.Main.FG = Console.ForegroundColor;
+                    ConsoleColors.Main.BG = Console.BackgroundColor;
+
                     _builder = new StringBuilder(SetBuffer);
+
+                    SetConsoleColors(ConsoleColors.Main);
 
                     if (debug)
                         Console.WriteLine("Help Character is " + this.SingleHelpChar.ToString());
@@ -125,12 +167,26 @@ namespace dsc_public
                         Console.WriteLine();
                     }
 
-                    Console.Write($"{Prompt}{_builder}");
+                    SetConsoleColors(ConsoleColors.Prompt);
+
+                    Console.Write($"{Prompt}");
+
+                    SetConsoleColors(ConsoleColors.Input);
+
+                    Console.Write($"{_builder}");
+
+                    SetConsoleColors(ConsoleColors.Main);
 
                     if (DebugPosition)
+                    {
+                        SetConsoleColors(ConsoleColors.Debug);
                         PrintDebugPosition();
+                        SetConsoleColors(ConsoleColors.Main);
+                    }
 
                     ConsoleKeyInfo capturedCharacter = new ConsoleKeyInfo();
+
+                    SetConsoleColors(ConsoleColors.Input);
 
                     while (EnterIsNotThe(capturedCharacter) && NotSingleHelpChar(capturedCharacter))
                     {
@@ -140,7 +196,11 @@ namespace dsc_public
                         this.HandleKeyInput(capturedCharacter);
                         _Position = this.Prompt.Length + _builder.Length;
                         if (DebugPosition)
+                        {
+                            SetConsoleColors(ConsoleColors.Debug);
                             PrintDebugPosition();
+                            SetConsoleColors(ConsoleColors.Input);
+                        }
                     }
 
                     if (NotSingleHelpChar(capturedCharacter))
@@ -155,17 +215,24 @@ namespace dsc_public
 
                     if (debug)
                     {
+                        SetConsoleColors(ConsoleColors.Debug);
                         Console.WriteLine();
                         Console.Write("<echo>" + _builder.ToString().Trim() + "</echo><length>" + _builder.ToString().Length + "</length>");
+                        SetConsoleColors(ConsoleColors.Input);
                     }
                     this._CommandIndex = _CommandList.Count;
 
                     if (!noCRLF)
                         Console.WriteLine();
+
+                    Console.ForegroundColor = ConsoleColors.Main.FG;
+                    Console.BackgroundColor = ConsoleColors.Main.BG;
                 }
                 catch (Exception ex)
                 {
+                    SetConsoleColors(ConsoleColors.Error);
                     Console.Write(ex.ToString());
+                    SetConsoleColors(ConsoleColors.Main);
                     return false;
                 }
 
@@ -283,7 +350,9 @@ namespace dsc_public
                 Console.Write(new string(' ', ClearLength));
                 Console.SetCursorPosition(0, cursorRow);
 
+                SetConsoleColors(ConsoleColors.Prompt);
                 Console.Write(this.Prompt);
+                SetConsoleColors(ConsoleColors.Input);
                 Console.Write(_builder.ToString());
 
                 int x = TotalLength;
@@ -434,6 +503,24 @@ namespace dsc_public
                 if (addCLIVerb.CompleteName.Length > this._MaxCommandLength) { _MaxCommandLength = addCLIVerb.CompleteName.Length; }
 
                 this.AutocompleteTree.Add(addCLIVerb);
+            }
+            private bool SetConsoleColors(ForeBack newColors)
+            {
+                bool Result = false;
+
+                try
+                {
+                    Console.ForegroundColor = newColors.FG;
+                    Console.BackgroundColor = newColors.BG;
+
+                    Result = true;
+                }
+                catch
+                {
+                    Result = false;
+                }
+
+                return Result;
             }
         }
         ///
