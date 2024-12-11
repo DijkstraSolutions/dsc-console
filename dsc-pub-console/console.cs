@@ -76,7 +76,7 @@ namespace dsc_public
                 get
                 {
                     Queue<string> commandQueue = new Queue<string>(LastCaptured.Trim().Split(' '));
-                    return ReturnAllMatch(commandQueue, AutocompleteTree);
+                    return ReturnAllMatch(commandQueue, AutocompleteTree).Trim();
                 }
             }
 
@@ -278,8 +278,6 @@ namespace dsc_public
             private string ReturnAllMatch(Queue<string> Commands, List<CLIVerb> verbs)
             {
                 StringBuilder result = new StringBuilder();
-
-                this.Debug = true;
 
                 if (this._Debug)
                 {
