@@ -276,20 +276,21 @@ namespace dsc_public
                 return ("");
             }
 
-            private string ReturnAllMatch (List<string> Commands, List<CLIVerb> verbs)
+            private string ReturnAllMatch(List<string> Commands, List<CLIVerb> verbs)
             {
-                //might need to include regex for dynamic values, example: dates
-                string Result = "";
-                
+                StringBuilder result = new StringBuilder();
+
+                this._Debug = true;
+
                 if (this._Debug)
                 {
-                    Console.WriteLine($"ReturnAllMatch(Debug Start)");
-                    Console.WriteLine($"ReturnAllMatch(Result={Result})");
-                    foreach (string Command in Commands)
+                    Console.WriteLine("ReturnAllMatch(Debug Start)");
+                    Console.WriteLine($"ReturnAllMatch(Result={result})");
+                    foreach (string command in Commands)
                     {
-                        Console.WriteLine($"ReturnAllMatch(Command={Command})");
+                        Console.WriteLine($"ReturnAllMatch(Command={command})");
                     }
-                    Console.WriteLine($"ReturnAllMatch(Debug Complete)");
+                    Console.WriteLine("ReturnAllMatch(Debug Complete)");
                 }
 
                 if (Commands.Count > 0)
@@ -299,34 +300,34 @@ namespace dsc_public
                         if (this._Debug)
                             Console.WriteLine($"verb={verb.CompleteName}");
 
-                        if (Commands.Count > 0)
+                        if (Commands.Count > 0 && verb.IsMatch(Commands[0]))
                         {
-                            if (verb.IsMatch(Commands[0]))
+                            if (this._Debug)
+                                Console.WriteLine($"Match found: {verb.CompleteName}");
+
+                            result.Append($"{verb.CompleteName} ");
+                            Commands.RemoveAt(0);
+
+                            if (Commands.Count > 0)
                             {
-                                if (this._Debug)
-                                     Console.WriteLine($"Match found: {verb.CompleteName}");
-
-                                Result = $"{verb.CompleteName} ";
-
-                                Commands.RemoveAt(0);
-
-                                if (Commands.Count > 0)
-                                {
-                                    Result += ReturnAllMatch(Commands, verb.CLISubVerbs);
-                                }
-                                else
-                                    return Result;
+                                result.Append(ReturnAllMatch(Commands, verb.CLISubVerbs));
                             }
                             else
-                                Result += Commands[0];
+                            {
+                                return result.ToString();
+                            }
                         }
-                        else
-                            return Result;
+                    }
+
+                    if (result.Length == 0)
+                    {
+                        result.Append(Commands[0]);
                     }
                 }
 
-                return Result;
+                return result.ToString();
             }
+
             private bool IsNotReservedWord(bool caseSensative = false)
             {
                 bool returnValue = true;
