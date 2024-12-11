@@ -75,8 +75,8 @@ namespace dsc_public
             {
                 get
                 {
-                    //Console.WriteLine($"LastCaptured={LastCaptured}");
-                    return ReturnAllMatch(LastCaptured.Trim().Split(' ').ToList(), AutocompleteTree);
+                    Queue<string> commandQueue = new Queue<string>(LastCaptured.Trim().Split(' '));
+                    return ReturnAllMatch(commandQueue, AutocompleteTree);
                 }
             }
 
@@ -101,7 +101,6 @@ namespace dsc_public
             }
 
             private int _CommandIndex = 0;
-
             private int _CursorRow = Console.CursorTop;
             private int _CursorColumn = Console.CursorLeft;
             private int _InsertAt = 0;
@@ -276,11 +275,11 @@ namespace dsc_public
                 return ("");
             }
 
-            private string ReturnAllMatch(List<string> Commands, List<CLIVerb> verbs)
+            private string ReturnAllMatch(Queue<string> Commands, List<CLIVerb> verbs)
             {
                 StringBuilder result = new StringBuilder();
 
-                this._Debug = true;
+                this.Debug = true;
 
                 if (this._Debug)
                 {
@@ -295,18 +294,20 @@ namespace dsc_public
 
                 if (Commands.Count > 0)
                 {
+                    string currentCommand = Commands.Peek();
+
                     foreach (CLIVerb verb in verbs)
                     {
                         if (this._Debug)
                             Console.WriteLine($"verb={verb.CompleteName}");
 
-                        if (Commands.Count > 0 && verb.IsMatch(Commands[0]))
+                        if (Commands.Count > 0 && verb.IsMatch(currentCommand))
                         {
                             if (this._Debug)
                                 Console.WriteLine($"Match found: {verb.CompleteName}");
 
                             result.Append($"{verb.CompleteName} ");
-                            Commands.RemoveAt(0);
+                            Commands.Dequeue();
 
                             if (Commands.Count > 0)
                             {
@@ -321,7 +322,7 @@ namespace dsc_public
 
                     if (result.Length == 0)
                     {
-                        result.Append(Commands[0]);
+                        result.Append(Commands.Dequeue());
                     }
                 }
 
