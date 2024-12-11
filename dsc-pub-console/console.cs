@@ -1,7 +1,9 @@
-﻿using System.Diagnostics.SymbolStore;
+﻿using System.Data;
+using System.Diagnostics.SymbolStore;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -73,18 +75,8 @@ namespace dsc_public
             {
                 get
                 {
-                    StringBuilder Result = new StringBuilder(this._builder.ToString().Trim());
-
-                    string match = ExtractMatch().Trim();
-
-                    if (match != "")
-                    {
-                        int xchars = GetLastVerbLength();
-                        Result.Length = (Result.Length - xchars); //this replaces characters typed at this level of the verb
-                        Result.Append(match + " ");
-                    }
-
-                    return Result.ToString();
+                    //Console.WriteLine($"LastCaptured={LastCaptured}");
+                    return ReturnAllMatch(LastCaptured.Trim().Split(' ').ToList(), AutocompleteTree);
                 }
             }
 
@@ -282,6 +274,58 @@ namespace dsc_public
                 }
 
                 return ("");
+            }
+
+            private string ReturnAllMatch (List<string> Commands, List<CLIVerb> verbs)
+            {
+                //might need to include regex for dynamic values, example: dates
+                string Result = "";
+                
+                if (this._Debug)
+                {
+                    Console.WriteLine($"ReturnAllMatch(Debug Start)");
+                    Console.WriteLine($"ReturnAllMatch(Result={Result})");
+                    foreach (string Command in Commands)
+                    {
+                        Console.WriteLine($"ReturnAllMatch(Command={Command})");
+                    }
+                    Console.WriteLine($"ReturnAllMatch(Debug Complete)");
+                }
+
+                if (Commands.Count > 0)
+                {
+                    foreach (CLIVerb verb in verbs)
+                    {
+                        if (this._Debug)
+                            Console.WriteLine($"verb={verb.CompleteName}");
+
+                        if (Commands.Count > 0)
+                        {
+                            if (verb.IsMatch(Commands[0]))
+                            {
+                                if (this._Debug)
+                                     Console.WriteLine($"Match found: {verb.CompleteName}");
+
+                                Result = $"{verb.CompleteName} ";
+
+                                Commands.RemoveAt(0);
+
+                                if (Commands.Count > 0)
+                                {
+                                    Result += ReturnAllMatch(Commands, verb.CLISubVerbs);
+                                }
+                                else
+                                    return Result;
+                            }
+                            else
+                                Result += Commands[0];
+                        }
+                        else
+                            return Result;
+                    }
+                }
+
+                return Result;
             }
             private bool IsNotReservedWord(bool caseSensative = false)
             {
