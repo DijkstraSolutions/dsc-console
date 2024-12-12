@@ -281,13 +281,10 @@ namespace dsc_public
 
                 if (this._Debug)
                 {
-                    Console.WriteLine("ReturnAllMatch(Debug Start)");
-                    Console.WriteLine($"ReturnAllMatch(Result={result})");
                     foreach (string command in Commands)
                     {
                         Console.WriteLine($"ReturnAllMatch(Command={command})");
                     }
-                    Console.WriteLine("ReturnAllMatch(Debug Complete)");
                 }
 
                 if (Commands.Count > 0)
@@ -320,7 +317,14 @@ namespace dsc_public
 
                     if (result.Length == 0)
                     {
-                        result.Append(Commands.Dequeue());
+                        while (Commands.Count > 0)
+                        {
+                            result.Append(Commands.Dequeue());
+                            if (Commands.Count > 0)
+                            {
+                                result.Append(" "); // Add a space between words
+                            }
+                        }
                     }
                 }
 
