@@ -259,10 +259,10 @@ namespace dsc_public
                                 if (eachVerb.IsMatch(matches[i]) && i == lastMatch)
                                 {
                                     foundMatch = true;
-                                    if (eachVerb.CompleteName.StartsWith("<r/>"))
-                                        return matches[i];
+                                    if (eachVerb.CompleteName.StartsWith("<r/>")) // if CompleteName starts with <r/> return what matched.
+                                        return matches[i]; //matched value return, task: allow to use group value matches combined with inline static values
                                     else
-                                        return eachVerb.CompleteName;
+                                        return eachVerb.CompleteName; //return static CompleteName
                                 }
                             }
 
@@ -317,6 +317,7 @@ namespace dsc_public
 
                     if (result.Length == 0)
                     {
+                        //return anything else that might be remaining
                         while (Commands.Count > 0)
                         {
                             result.Append(Commands.Dequeue());
