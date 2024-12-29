@@ -53,8 +53,6 @@ namespace dsc_public
             }
         }
 
-
-
         public class AutoConsole
         {
             public Colors ConsoleColors { get; set; } = new Colors();
@@ -301,7 +299,11 @@ namespace dsc_public
                             if (this._Debug)
                                 Console.WriteLine($"Match found: {verb.CompleteName}");
 
-                            result.Append($"{verb.CompleteName} ");
+                            if (verb.CompleteName.StartsWith("<r/>"))
+                                result.Append($"{currentCommand} ");
+                            else
+                                result.Append($"{verb.CompleteName} ");
+
                             Commands.Dequeue();
 
                             if (Commands.Count > 0)
