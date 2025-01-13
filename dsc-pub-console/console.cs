@@ -55,7 +55,7 @@ namespace dsc_public
 
         public class AutoConsole
         {
-            public List<ConsoleKey> IgnoreChars = new List<ConsoleKey>();
+            public List<ConsoleKey> IgnoreKeys = new List<ConsoleKey>();
             public Colors ConsoleColors { get; set; } = new Colors();
             public List<CLIVerb> AutocompleteTree { get; set; } = new List<CLIVerb>();
             public string LastCaptured
@@ -134,7 +134,7 @@ namespace dsc_public
             {
                 _Debug = debug;
 
-                this.IgnoreChars.Add(ConsoleKey.F15);
+                this.IgnoreKeys.Add(ConsoleKey.F15);
 
                 try
                 {
@@ -531,7 +531,7 @@ namespace dsc_public
                         // Alter the Builder
                         bool AddCharacter = true;
 
-                        foreach (ConsoleKey checkIgnore in IgnoreChars)
+                        foreach (ConsoleKey checkIgnore in IgnoreKeys)
                         {
                             if(checkIgnore == keyInput.Key)
                             {
