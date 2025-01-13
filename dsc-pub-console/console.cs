@@ -55,6 +55,7 @@ namespace dsc_public
 
         public class AutoConsole
         {
+            public List<char> IgnoreChars = new List<char>();
             public Colors ConsoleColors { get; set; } = new Colors();
             public List<CLIVerb> AutocompleteTree { get; set; } = new List<CLIVerb>();
             public string LastCaptured
@@ -132,6 +133,8 @@ namespace dsc_public
             public bool StartAutoConsole(string SetBuffer = "", bool noCRLF = false, bool debug = false)
             {
                 _Debug = debug;
+
+                this.IgnoreChars.Add(Convert.ToChar(141));
 
                 try
                 {
@@ -526,10 +529,23 @@ namespace dsc_public
 
                     default:
                         // Alter the Builder
-                        _builder.Append(keyInput.KeyChar);
+                        bool AddCharacter = true;
 
-                        // Print Reuslts
-                        Console.Write(keyInput.KeyChar);
+                        foreach (char checkIgnore in IgnoreChars)
+                        {
+                            if(checkIgnore == keyInput.KeyChar)
+                            {
+                                AddCharacter = false;
+                            }
+                        }
+
+                        if (AddCharacter)
+                        {
+                            _builder.Append(keyInput.KeyChar);
+
+                            // Print Results
+                            Console.Write(keyInput.KeyChar);
+                        }
                         break;
                 }
             }
@@ -593,6 +609,7 @@ namespace dsc_public
             public string Regex { get; set; } = "";
             public string Help { get; set; } = "";
             public string Description { get; set; } = "";
+            public bool Hidden { get; set; } = false;
             private int DebugCount = 0;
             private string DebugLog = "";
             public List<CLIVerb> CLISubVerbs { get; set; } = new List<CLIVerb>();
@@ -640,7 +657,7 @@ namespace dsc_public
                 AddDebug("Initialized with completename,regex");
             }
 
-            public CLIVerb(string completename, string regex, string help, int OrderID, int GroupID = 10)
+            public CLIVerb(string completename, string regex, string help, int OrderID, bool Hidden = false, int GroupID = 10)
             {
                 CompleteName = completename;
                 DisplayName = completename;
@@ -649,10 +666,11 @@ namespace dsc_public
                 Usage = completename;
                 this.OrderID = OrderID;
                 this.GroupID = GroupID;
+                this.Hidden = Hidden;
                 AddDebug("Initialized with completename,regex,help,orderid,groupid");
             }
 
-            public CLIVerb(string completename, string regex, string help, string usage, int OrderID, int GroupID = 10)
+            public CLIVerb(string completename, string regex, string help, string usage, int OrderID, bool Hidden = false, int GroupID = 10)
             {
                 CompleteName = completename;
                 DisplayName = completename;
@@ -661,6 +679,7 @@ namespace dsc_public
                 Usage = usage;
                 this.OrderID = OrderID;
                 this.GroupID = GroupID;
+                this.Hidden = Hidden;
                 AddDebug("Initialized with completename,regex,help,usage,orderid,groupid"); ;
             }
 
