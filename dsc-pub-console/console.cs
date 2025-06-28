@@ -66,6 +66,10 @@ namespace dsc_public
                 }
             }
 
+            private int _InputOriginLeft = 0;
+            private int _InputOriginTop = 0;
+            private int _LastRenderLength = 0;
+
             /// <summary>
             /// Intended to expand all verbs even if not completed by user input
             /// Any unrecognized input is untouched
@@ -91,6 +95,8 @@ namespace dsc_public
 
             private List<string> _CommandList = new List<string>();
 
+            public List<string> Messages { get; set; } = new List<string>();
+
             public int MaxCommandLength
             {
                 get
@@ -104,6 +110,8 @@ namespace dsc_public
             private int _CursorColumn = Console.CursorLeft;
             private int _InsertAt = 0;
             private int _Position = 0;
+            private int _BuilderIndex = 0;  // enable left/right arrow movement in the input line
+
             public bool Debug
             {
                 get
@@ -133,8 +141,9 @@ namespace dsc_public
             public bool StartAutoConsole(string SetBuffer = "", bool noCRLF = false, bool debug = false)
             {
                 _Debug = debug;
+                (_InputOriginLeft, _InputOriginTop) = Console.GetCursorPosition();
 
-                this.IgnoreKeys.Add(ConsoleKey.F15);
+                this.IgnoreKeys.Add(ConsoleKey.F15); //ignore Caffine tool
 
                 try
                 {
@@ -142,6 +151,7 @@ namespace dsc_public
                     ConsoleColors.Main.BG = Console.BackgroundColor;
 
                     _builder = new StringBuilder(SetBuffer);
+                    _BuilderIndex = _builder.Length; //enable left/right arrow movement in the input line
 
                     SetConsoleColors(ConsoleColors.Main);
 
@@ -159,9 +169,15 @@ namespace dsc_public
                         Console.WriteLine();
                     }
 
+                    int savedLeft = Console.CursorLeft;
+                    int savedTop = Console.CursorTop;
+
                     SetConsoleColors(ConsoleColors.Prompt);
 
                     Console.Write($"{Prompt}");
+
+                    _InputOriginLeft = savedLeft;
+                    _InputOriginTop = savedTop;
 
                     SetConsoleColors(ConsoleColors.Input);
 
@@ -195,14 +211,41 @@ namespace dsc_public
                         }
                     }
 
-                    if (NotSingleHelpChar(capturedCharacter))
-                        Console.Write(capturedCharacter.KeyChar);
+                    // Final redraw must show the entire buffer regardless of cursor position
+                    int originalIndex = _BuilderIndex;
+                    _BuilderIndex = _builder.Length;
+                    ClearCurrentLine();           // Draw full line even if cursor was mid-buffer
+                    _BuilderIndex = originalIndex;
 
-                    if (_builder.ToString().Trim().Length != 0)
+                    //if (this._Debug)
                     {
-                        if (IsNotReservedWord() && NotSingleHelpChar(capturedCharacter))
-                            this._CommandList.Add(_builder.ToString().Trim());
-                        _InsertAt= _builder.Length;
+                        Messages.Add($"[DBG] Final buffer snapshot before Enter: \"{_builder}\"");
+                        Messages.Add($"[DBG] Cursor moved to input end: offset={_builder.Length}, totalPrompted={Prompt.Length + _builder.Length}");
+                    }
+
+                    MoveCursorToInputEnd();       // Put cursor at end of true input
+                    Console.WriteLine();          // Newline
+                    FlushFinalLine();             // Clear residue below if any
+
+                    // - fixed consecutive history dupllicates ignored
+                    string currentCommand = _builder.ToString()
+                        .Replace("\r", "")  // strip carriage returns
+                        .Replace("\n", "");
+
+                    _builder.Clear();
+                    _builder.Append(currentCommand);
+                    _BuilderIndex = _builder.Length;
+
+                    if (currentCommand.Length != 0 && IsNotReservedWord() && NotSingleHelpChar(capturedCharacter))
+                    {
+                        bool isDuplicateOfLast = _CommandList.Count > 0 && _CommandList[^1] == currentCommand;
+
+                        if (!isDuplicateOfLast)
+                        {
+                            _CommandList.Add(currentCommand);
+                        }
+
+                        _InsertAt = _builder.Length;
                     }
 
                     if (debug)
@@ -275,7 +318,6 @@ namespace dsc_public
 
                 return ("");
             }
-
             private string ReturnAllMatch(Queue<string> Commands, List<CLIVerb> verbs)
             {
                 StringBuilder result = new StringBuilder();
@@ -336,7 +378,6 @@ namespace dsc_public
 
                 return result.ToString();
             }
-
             private bool IsNotReservedWord(bool caseSensative = false)
             {
                 bool returnValue = true;
@@ -386,36 +427,187 @@ namespace dsc_public
                 PrintCommandTree();
                 PrintHistory();
             }
+            //private void ClearCurrentLine()
+            //{
+            //    int cursorRow = Console.CursorTop;
+            //    int TotalLength = _builder.ToString().Length + this.Prompt.Length + 1;
+            //    int ClearLength = Console.WindowWidth;
+
+            //    //Console.WriteLine(TotalLength);
+
+            //    if (TotalLength > Console.WindowWidth)
+            //    {
+            //        cursorRow--;
+            //        ClearLength = Console.WindowWidth * 2;
+            //    }
+
+            //    Console.SetCursorPosition(0, cursorRow);
+            //    Console.Write(new string(' ', ClearLength));
+            //    Console.SetCursorPosition(0, cursorRow);
+
+            //    SetConsoleColors(ConsoleColors.Prompt);
+            //    Console.Write(this.Prompt);
+            //    SetConsoleColors(ConsoleColors.Input);
+            //    Console.Write(_builder.ToString());
+
+            //    int x = TotalLength;
+            //    if (x < this.Prompt.Length)
+            //        x = this.Prompt.Length;
+
+            //    //Console.SetCursorPosition(_CursorLocation, currentLine);
+            //    //Console.SetCursorPosition(currentColumn, currentLine);
+            //}
+            //private void ClearCurrentLine()
+            //{
+            //    int windowWidth = Console.WindowWidth;
+            //    int promptLength = this.Prompt.Length;
+            //    int inputLength = _builder.Length;
+            //    int totalLength = promptLength + inputLength;
+
+            //    // Calculate number of console lines used previously
+            //    int previousLineCount = (_LastRenderLength + windowWidth - 1) / windowWidth;
+
+            //    // Clear all rows the previous input occupied
+            //    for (int i = 0; i < previousLineCount; i++)
+            //    {
+            //        int row = _InputOriginTop + i;
+            //        if (row >= Console.BufferHeight)
+            //            break;
+
+            //        Console.SetCursorPosition(0, row);
+            //        Console.Write(new string(' ', windowWidth));
+            //    }
+
+            //    // Reset cursor to the original prompt position
+            //    Console.SetCursorPosition(_InputOriginLeft, _InputOriginTop);
+
+            //    // Redraw prompt
+            //    SetConsoleColors(ConsoleColors.Prompt);
+            //    Console.Write(this.Prompt);
+
+            //    // Redraw input
+            //    SetConsoleColors(ConsoleColors.Input);
+            //    Console.Write(_builder.ToString());
+
+            //    // If this input is shorter than previous, erase leftover characters
+            //    int leftoverPadding = _LastRenderLength - totalLength;
+            //    if (leftoverPadding > 0)
+            //    {
+            //        Console.Write(new string(' ', leftoverPadding));
+            //    }
+
+            //    // Update cursor position
+            //    //int cursorOffset = promptLength + inputLength;
+            //    int cursorOffset = promptLength + _BuilderIndex; //enable left/right arrow movement in the input line
+            //    int finalLeft = (_InputOriginLeft + cursorOffset) % windowWidth;
+            //    int finalTop = _InputOriginTop + (_InputOriginLeft + cursorOffset) / windowWidth;
+
+            //    // Clamp to prevent crash at bottom of console buffer
+            //    int safeTop = Math.Min(finalTop, Console.BufferHeight - 1);
+            //    int safeLeft = Math.Min(finalLeft, Console.BufferWidth - 1);
+
+            //    Console.SetCursorPosition(safeLeft, safeTop);
+
+
+            //    // Save render length for next time
+            //    _LastRenderLength = totalLength;
+            //}
             private void ClearCurrentLine()
             {
-                int cursorRow = Console.CursorTop;
-                int TotalLength = _builder.ToString().Length + this.Prompt.Length + 1;
-                int ClearLength = Console.WindowWidth;
+                int windowWidth = Console.WindowWidth;
+                int promptLength = this.Prompt.Length;
+                int inputLength = _builder.Length;
+                int totalLength = promptLength + inputLength;
 
-                //Console.WriteLine(TotalLength);
+                int previousLength = _LastRenderLength;
+                _LastRenderLength = totalLength;
 
-                if (TotalLength > Console.WindowWidth)
+                // Total console columns used previously vs now
+                int previousLineCount = (previousLength + _InputOriginLeft + windowWidth - 1) / windowWidth;
+                int currentLineCount = (totalLength + _InputOriginLeft + windowWidth - 1) / windowWidth;
+                int maxLines = Math.Max(previousLineCount, currentLineCount);
+
+                if (this._Debug)
                 {
-                    cursorRow--;
-                    ClearLength = Console.WindowWidth * 2;
+                    Messages.Add($"[DBG] Redrawing input line. Prompt=\"{Prompt}\", Buffer=\"{_builder}\"");
+                    Messages.Add($"[DBG] Cursor offset={_BuilderIndex}, RenderWidth={_LastRenderLength}, WindowWidth={Console.WindowWidth}");
                 }
 
-                Console.SetCursorPosition(0, cursorRow);
-                Console.Write(new string(' ', ClearLength));
-                Console.SetCursorPosition(0, cursorRow);
+                // Clear all rows we might have used
+                for (int i = 0; i < maxLines; i++)
+                {
+                    int row = _InputOriginTop + i;
+                    if (row >= Console.BufferHeight) break;
 
+                    Console.SetCursorPosition(0, row);
+                    Console.Write(new string(' ', windowWidth));
+                }
+
+                // Reset to input start
+                Console.SetCursorPosition(_InputOriginLeft, _InputOriginTop);
+
+                // Redraw prompt
                 SetConsoleColors(ConsoleColors.Prompt);
                 Console.Write(this.Prompt);
+
+                //if (this._Debug)
+                {
+                    var visualized = new StringBuilder();
+                    foreach (char c in _builder.ToString())
+                    {
+                        if (c == '\r') visualized.Append("<CR>");
+                        else if (c == '\n') visualized.Append("<LF>");
+                        else visualized.Append(c);
+                    }
+                    Messages.Add($"[DBG] Visual buffer = [{visualized}]");
+                }
+
+                // Redraw buffer
                 SetConsoleColors(ConsoleColors.Input);
                 Console.Write(_builder.ToString());
 
-                int x = TotalLength;
-                if (x < this.Prompt.Length)
-                    x = this.Prompt.Length;
+                // Erase trailing characters from longer previous render
+                int leftover = previousLength - totalLength;
+                if (leftover > 0)
+                {
+                    Console.Write(new string(' ', leftover));
+                }
 
-                //Console.SetCursorPosition(_CursorLocation, currentLine);
-                //Console.SetCursorPosition(currentColumn, currentLine);
+                // Update cursor position
+                int cursorOffset = promptLength + _BuilderIndex;
+                int finalLeft = (_InputOriginLeft + cursorOffset) % windowWidth;
+                int finalTop = _InputOriginTop + (_InputOriginLeft + cursorOffset) / windowWidth;
+
+                Console.SetCursorPosition(
+                    Math.Min(finalLeft, Console.BufferWidth - 1),
+                    Math.Min(finalTop, Console.BufferHeight - 1)
+                );
+
+                // DEBUG: show buffer and tracking info (only if Debug = true)
+               //if (this._Debug)
+               {
+                    try
+                    {
+                        int debugRow = Console.CursorTop;
+                        int debugLeft = 0;
+
+                        Console.SetCursorPosition(debugLeft, debugRow + 1);
+                        SetConsoleColors(ConsoleColors.Debug);
+                        Messages.Add($"[DBG] builder.Length={_builder.Length}, _LastRenderLength={_LastRenderLength}, prompt={promptLength}, offset={_BuilderIndex}");
+                        SetConsoleColors(ConsoleColors.Input);
+                        Console.SetCursorPosition(finalLeft, finalTop);
+                    }
+                    catch (Exception debugEx)
+                    {
+                        SetConsoleColors(ConsoleColors.Error);
+                        Console.SetCursorPosition(0, Console.CursorTop);
+                        Messages.Add($"[DBG ERROR] {debugEx.Message}");
+                        SetConsoleColors(ConsoleColors.Main);
+                    }
+                }
+
             }
+
             private int GetLastVerbLength()
             {
                 string[] verbs = _builder.ToString().Trim().Split(' ', 3);
@@ -435,20 +627,84 @@ namespace dsc_public
             }
             private void MoveLeft()
             {
-                _CursorRow--;
+                //_CursorRow--;
 
-                if (_CursorRow < this.Prompt.Length)
-                    _CursorRow = this.Prompt.Length;
-
-               
+                //if (_CursorRow < this.Prompt.Length)
+                //    _CursorRow = this.Prompt.Length;
+                //enable left/right arrow movement in the input line:
+                if (_BuilderIndex > 0)
+                    _BuilderIndex--;               
             }
             private void MoveRight()
             {
-                _CursorRow++;
+                //_CursorRow++;
 
-                if (_CursorRow > _builder.ToString().Length + Prompt.Length)
-                    _CursorRow = _builder.ToString().Length + Prompt.Length;
+                //if (_CursorRow > _builder.ToString().Length + Prompt.Length)
+                //    _CursorRow = _builder.ToString().Length + Prompt.Length;
+
+                //enable left/right arrow movement in the input line:
+                if (_BuilderIndex < _builder.Length)
+                    _BuilderIndex++;
             }
+            //private void FlushFinalLine()
+            //{
+            //    //Console.SetCursorPosition(_InputOriginLeft, _InputOriginTop);
+            //    //ClearCurrentLine();
+            //    //Console.WriteLine();
+            //    int nextLine = _InputOriginTop + (_InputOriginLeft + Prompt.Length + _builder.Length) / Console.WindowWidth;
+            //    int safeTop = Math.Min(nextLine, Console.BufferHeight - 1);
+            //    Console.SetCursorPosition(0, safeTop);
+            //}
+            //private void FlushFinalLine()
+            //{
+            //    // Move cursor to logical end of input
+            //    int totalInputLength = Prompt.Length + _builder.Length;
+            //    int targetTop = _InputOriginTop + (_InputOriginLeft + totalInputLength) / Console.WindowWidth;
+
+            //    // Avoid overflow
+            //    targetTop = Math.Min(targetTop, Console.BufferHeight - 1);
+
+            //    // Place cursor on new line start
+            //    Console.SetCursorPosition(0, targetTop + 1);
+            //}
+
+            private void FlushFinalLine()
+            {
+                int promptLength = Prompt.Length;
+                int totalInputLength = promptLength + _builder.Length;
+                int targetTop = _InputOriginTop + (_InputOriginLeft + totalInputLength) / Console.WindowWidth;
+
+                // Calculate the clean line position
+                int flushLine = Math.Min(targetTop + 1, Console.BufferHeight - 1);
+
+                // Clear the entire flush line to avoid prompt overwrites
+                Console.SetCursorPosition(0, flushLine);
+                Console.Write(new string(' ', Console.WindowWidth));
+                Console.SetCursorPosition(0, flushLine); // back to start of cleared line
+                //_LastRenderLength = totalInputLength;
+                _LastRenderLength = 0;
+
+            }
+
+            private void MoveCursorToInputEnd()
+            {
+                int promptLength = this.Prompt.Length;
+                int inputLength = _builder.Length;
+                int totalOffset = promptLength + inputLength;
+
+                int finalLeft = (_InputOriginLeft + totalOffset) % Console.WindowWidth;
+                int finalTop = _InputOriginTop + (_InputOriginLeft + totalOffset) / Console.WindowWidth;
+
+                Console.SetCursorPosition(
+                    Math.Min(finalLeft, Console.BufferWidth - 1),
+                    Math.Min(finalTop, Console.BufferHeight - 1)
+                );
+            }
+
+
+
+
+
             private void HandleKeyInput(ConsoleKeyInfo keyInput)
             {
                 switch (keyInput.Key)
@@ -462,6 +718,7 @@ namespace dsc_public
                             int xchars = GetLastVerbLength();
                             _builder.Length = (_builder.Length - xchars); //this replaces characters typed at this level of the verb
                             _builder.Append(match + " ");
+                            _BuilderIndex = _builder.Length; //enable left/right arrow movement in the input line
                             _CursorRow = _builder.Length + Prompt.Length;
                         }
 
@@ -470,13 +727,21 @@ namespace dsc_public
                         break;
 
                     case ConsoleKey.Backspace:
-                        if (_builder.ToString().Length > 0)
+                        //if (_builder.ToString().Length > 0)
+                        //{
+                        //    _builder.Remove(_builder.Length - 1, 1);
+                        //    _BuilderIndex--; //enable left/right arrow movement in the input line
+                        //}
+
+                        //ClearCurrentLine();
+
+                        //break;
+                        if (_BuilderIndex > 0 && _builder.Length > 0)
                         {
-                            _builder.Remove(_builder.Length - 1, 1);
+                            _builder.Remove(_BuilderIndex - 1, 1);
+                            _BuilderIndex--;
+                            ClearCurrentLine();
                         }
-
-                        ClearCurrentLine();
-
                         break;
 
                     case ConsoleKey.UpArrow:
@@ -484,8 +749,12 @@ namespace dsc_public
                         {
                             _CommandIndex--;
                             _builder.Clear();
+                            _BuilderIndex = _builder.Length; //enable left/right arrow movement in the input line
                             _builder.Append(_CommandList[_CommandIndex]);
+                            _BuilderIndex = _builder.Length; //enable left/right arrow movement in the input line
                             _CursorRow = _builder.Length + Prompt.Length;
+
+                            Console.SetCursorPosition(_InputOriginLeft, _InputOriginTop);
                         }
 
                         ClearCurrentLine();
@@ -496,21 +765,37 @@ namespace dsc_public
                         if (_CommandIndex < _CommandList.Count - 1)
                         {
                             _CommandIndex++;
-                            _builder.Clear();
+                            _builder.Clear(); //enable left/right arrow movement in the input line
+                            _BuilderIndex = _builder.Length;
                             _builder.Append(_CommandList[_CommandIndex]);
+                            _BuilderIndex = _builder.Length; //enable left/right arrow movement in the input line
                             _CursorRow = _builder.Length + Prompt.Length;
                         }
-                        //Console.WriteLine();
-                        //Console.WriteLine(_CommandIndex);
-                        ClearCurrentLine();
-                        //Console.Write(_builder.ToString());
 
+                        ClearCurrentLine();
                         break;
 
                     case ConsoleKey.Escape:
                         _builder.Clear();
+                        _BuilderIndex = _builder.Length; //enable left/right arrow movement in the input line
                         ClearCurrentLine();
 
+                        break;
+                    case ConsoleKey.Home:
+                        _BuilderIndex = 0;
+                        ClearCurrentLine();
+                        break;
+
+                    case ConsoleKey.End:
+                        _BuilderIndex = _builder.Length;
+                        ClearCurrentLine();
+                        break;
+                    case ConsoleKey.Delete:
+                        if (_BuilderIndex < _builder.Length)
+                        {
+                            _builder.Remove(_BuilderIndex, 1);
+                            ClearCurrentLine();
+                        }
                         break;
 
                     case ConsoleKey.RightArrow:
@@ -541,10 +826,20 @@ namespace dsc_public
 
                         if (AddCharacter)
                         {
-                            _builder.Append(keyInput.KeyChar);
+                            //_builder.Append(keyInput.KeyChar);
 
-                            // Print Results
-                            Console.Write(keyInput.KeyChar);
+                            //// Print Results
+                            //Console.Write(keyInput.KeyChar);
+
+                            if (char.IsControl(keyInput.KeyChar) && keyInput.KeyChar != '\t')
+                            {
+                                Messages.Add($"[DBG] Ignored control character: 0x{(int)keyInput.KeyChar:X2}");
+                                break;
+                            }
+                            // enable left/right arrow movement in the input line:
+                            _builder.Insert(_BuilderIndex, keyInput.KeyChar);
+                            _BuilderIndex++;
+                            ClearCurrentLine();
                         }
                         break;
                 }
