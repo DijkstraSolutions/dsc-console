@@ -23,9 +23,11 @@ CLIVerb newVerb1 = new CLIVerb("today", "^tod?a?y?$", "This is a description for
 newVerb1.AddSubVerb(newVerb2)
 
 myconsole.AddVerb(newVerb1);
+```
 
-Keep in mind, the above allows typos, this does not:
+Keep in mind, the regex above allows typos, this does not:
 
+```c#
 newVerb.AddSubVerb(new CLIVerb("create", "^c(r(e(a(t(e)?)?)?)?)?$", "Create something", order++));
 ```
 
