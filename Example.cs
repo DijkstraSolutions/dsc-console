@@ -16,7 +16,12 @@ namespace yournamespace
             ///CLIVerb(string completename, string regex, string displayname = "")
             ///CLIVerb(string completename, string displayname = "")
             ///CLIVerb()
-            CLIVerb newVerb = new CLIVerb("today", "^tod?a?y?$", "This is a description for using today", "today");
+
+            //Strict match for the word today:
+            CLIVerb newVerb = new CLIVerb("today", "^to(d(a(y)?)?)?$", "This is a description for using today", "today");
+            
+            //Easier to input but this allows yesterday, yeserday, yesday, yesterdy, yesrday, yesy
+            //oddly this has a benefit to allow for missing key typos
             myconsole.AddVerb(newVerb);
             newVerb = new CLIVerb("yesterday", "^yes?t?e?r?d?a?y?$", "This is a description for using yesterday", "yesterday");
             myconsole.AddVerb(newVerb);
