@@ -23,6 +23,10 @@ CLIVerb newVerb1 = new CLIVerb("today", "^tod?a?y?$", "This is a description for
 newVerb1.AddSubVerb(newVerb2)
 
 myconsole.AddVerb(newVerb1);
+
+Keep in mind, the above allows typos, this does not:
+
+newVerb.AddSubVerb(new CLIVerb("create", "^c(r(e(a(t(e)?)?)?)?)?$", "Create something", order++));
 ```
 
 AutoComplete will only follow the appropriate AutoComplete for that respective verb parent at the current level. This is
