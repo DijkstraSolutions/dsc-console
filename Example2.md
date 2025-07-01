@@ -26,15 +26,15 @@ class Program
         var helpCmd = new CLIWord("help", 1, "Display help text");
 
         // 'exit' command, triggered by typing "e" or more
-        var exitCmd = new CLIWord("exit", 1, "Exit the application");
+        var exitCmd = new CLIWord("exit", 0, "Exit the application");
 
         // === Define nested command: config set ===
 
         // 'config' is the base command
-        var configCmd = new CLIWord("config", 1, "Manage configuration");
+        var configCmd = new CLIWord("config", 0, "Manage configuration");
 
         // 'set' is a subcommand under config
-        var setCmd = new CLIWord("set", 1, "Set configuration value");
+        var setCmd = new CLIWord("set", 0, "Set configuration value");
         configCmd.AddSubWord(setCmd);
 
         // === Register all commands with autocomplete ===
@@ -43,7 +43,7 @@ class Program
         ac.AddWord(configCmd);
 
         Console.WriteLine("Interactive CLI Demo\n");
-        Console.WriteLine("Try typing 'h' and press [Tab] for 'help'");
+        Console.WriteLine("Try typing 'he' and press [Tab] for 'help'");
         Console.WriteLine("Try typing 'config s' and press [Tab] for 'config set'");
         Console.WriteLine("Type 'exit' to quit\n");
 
