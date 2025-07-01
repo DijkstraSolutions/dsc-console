@@ -25,6 +25,12 @@ newVerb1.AddSubVerb(newVerb2)
 myconsole.AddVerb(newVerb1);
 ```
 
+Keep in mind, the regex above allows typos, this does not:
+
+```c#
+newVerb.AddSubVerb(new CLIVerb("create", "^c(r(e(a(t(e)?)?)?)?)?$", "Create something", order++));
+```
+
 AutoComplete will only follow the appropriate AutoComplete for that respective verb parent at the current level. This is
 important because today and tomorrow above both can AutoComplete after to based on the regex.
 
