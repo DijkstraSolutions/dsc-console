@@ -19,6 +19,7 @@ namespace dsc_public
 {
     namespace console
     {
+        public enum DebugLevel { None, Error, Warning, Informational, Everything };
         public class ForeBack
         {
             public ConsoleColor FG { get; set; } = ConsoleColor.Gray;
@@ -33,7 +34,6 @@ namespace dsc_public
             public ForeBack Prompt { get; set; } = new ForeBack();
             public ForeBack Input { get; set; } = new ForeBack();
             public ForeBack Debug { get; set; } = new ForeBack();
-
             public Colors()
             {
                 Main.FG = ConsoleColor.Gray;
@@ -55,9 +55,21 @@ namespace dsc_public
 
         public class AutoConsole
         {
+            /// <summary>
+            /// List of keys to ignore during input handling.
+            /// </summary>
             public List<ConsoleKey> IgnoreKeys = new List<ConsoleKey>();
+            /// <summary>
+            /// Color configuration for console elements.
+            /// </summary>
             public Colors ConsoleColors { get; set; } = new Colors();
-            public List<CLIVerb> AutocompleteTree { get; set; } = new List<CLIVerb>();
+            /// <summary>
+            /// Command tree for autocomplete suggestions.
+            /// </summary>
+            public List<CLIWord> AutocompleteTree { get; set; } = new List<CLIWord>();
+            /// <summary>
+            /// Returns the trimmed string currently in the buffer.
+            /// </summary>
             public string LastCaptured
             {
                 get
@@ -71,10 +83,10 @@ namespace dsc_public
             private int _LastRenderLength = 0;
 
             /// <summary>
-            /// Intended to expand all verbs even if not completed by user input
+            /// Intended to expand all Words even if not completed by user input
             /// Any unrecognized input is untouched
             /// </summary>
-            public string LastCompleteVerbPhrase
+            public string LastCompleteWordPhrase
             {
                 get
                 {
@@ -82,28 +94,30 @@ namespace dsc_public
                     return ReturnAllMatch(commandQueue, AutocompleteTree).Trim();
                 }
             }
-
+            /// <summary>
+            /// Prefix string to be displayed before user input.
+            /// </summary>
             public string Prompt = "";
             /// <summary>
             /// Default Help Char is ?, you can change this
             /// </summary>
             public char SingleHelpChar = '?';
-
+            /// <summary>
+            /// List of reserved words that should not be added to command history.
+            /// </summary>
             public List<string> ReservedList = new List<string>();
 
             private StringBuilder _builder = new StringBuilder();
 
             private List<string> _CommandList = new List<string>();
-
+            /// <summary>
+            /// Captures diagnostic or debug messages during input lifecycle.
+            /// </summary
             public List<string> Messages { get; set; } = new List<string>();
-
-            public int MaxCommandLength
-            {
-                get
-                {
-                    return _MaxCommandLength;
-                }
-            }
+            /// <summary>
+            /// Gets the maximum command length encountered.
+            /// </summary>
+            public int MaxCommandLength => _MaxCommandLength;
 
             private int _CommandIndex = 0;
             private int _CursorRow = Console.CursorTop;
@@ -111,22 +125,19 @@ namespace dsc_public
             private int _InsertAt = 0;
             private int _Position = 0;
             private int _BuilderIndex = 0;  // enable left/right arrow movement in the input line
+            /// <summary>
+            /// Wordosity level for debug information.
+            /// </summary>
+            public DebugLevel Debug { get; set; } = DebugLevel.Error;
 
-            public bool Debug
-            {
-                get
-                {
-                    return _Debug;
-                }
-                set
-                {
-                    _Debug = value;
-                }
-            }
-            private bool _Debug = false;
+            /// <summary>
+            /// If true, displays the cursor position while typing.
+            /// </summary>
             public bool DebugPosition = false;
             private int _MaxCommandLength = 0;
-
+            /// <summary>
+            /// Displays the current cursor position at the top of the console.
+            /// </summary>
             private void PrintDebugPosition()
             {
                 var (saveLeft, saveTop) = Console.GetCursorPosition();
@@ -138,9 +149,18 @@ namespace dsc_public
                 Console.Write($"[{saveLeft}][{_Position}]");
                 Console.SetCursorPosition(saveLeft, saveTop);
             }
-            public bool StartAutoConsole(string SetBuffer = "", bool noCRLF = false, bool debug = false)
+            /// <summary>
+            /// Starts the interactive console interface with optional initial input buffer and debug mode.
+            /// </summary>
+            /// <param name="SetBuffer">Initial buffer content.</param>
+            /// <param name="noCRLF">Suppresses the final newline if true.</param>
+            /// <param name="debug">Sets the debug Wordosity level.</param>
+            /// <returns>True if the console interaction completes successfully; false on exception.</returns>
+            public bool StartAutoConsole(string SetBuffer = "", bool noCRLF = false, DebugLevel debug = DebugLevel.Error)
             {
-                _Debug = debug;
+                Debug = debug;
+                //Debug = true;
+
                 (_InputOriginLeft, _InputOriginTop) = Console.GetCursorPosition();
 
                 this.IgnoreKeys.Add(ConsoleKey.F15); //ignore Caffine tool
@@ -155,7 +175,7 @@ namespace dsc_public
 
                     SetConsoleColors(ConsoleColors.Main);
 
-                    if (debug)
+                    if (Debug > DebugLevel.Warning)
                         Console.WriteLine("Help Character is " + this.SingleHelpChar.ToString());
 
                     _CursorRow = Console.CursorTop;
@@ -217,13 +237,14 @@ namespace dsc_public
                     ClearCurrentLine();           // Draw full line even if cursor was mid-buffer
                     _BuilderIndex = originalIndex;
 
-                    //if (this._Debug)
+                    if (Debug > DebugLevel.Informational)
                     {
                         Messages.Add($"[DBG] Final buffer snapshot before Enter: \"{_builder}\"");
                         Messages.Add($"[DBG] Cursor moved to input end: offset={_builder.Length}, totalPrompted={Prompt.Length + _builder.Length}");
                     }
 
-                    MoveCursorToInputEnd();       // Put cursor at end of true input
+                    //MoveCursorToInputEnd();       // Put cursor at end of true input
+                    SetCursorToCurrentIndex();
                     Console.WriteLine();          // Newline
                     FlushFinalLine();             // Clear residue below if any
 
@@ -248,7 +269,7 @@ namespace dsc_public
                         _InsertAt = _builder.Length;
                     }
 
-                    if (debug)
+                    if (Debug > DebugLevel.Informational)
                     {
                         SetConsoleColors(ConsoleColors.Debug);
                         Console.WriteLine();
@@ -259,6 +280,12 @@ namespace dsc_public
 
                     if (!noCRLF)
                         Console.WriteLine();
+
+                    if (Debug > DebugLevel.Informational)
+                    {
+                        foreach (var rootWord in AutocompleteTree)
+                            CollectDebugLogs(rootWord);
+                    }
 
                     Console.ForegroundColor = ConsoleColors.Main.FG;
                     Console.BackgroundColor = ConsoleColors.Main.BG;
@@ -273,14 +300,17 @@ namespace dsc_public
 
                 return true;
             }
+            /// <summary>
+            /// Attempts to find a matching autocomplete term from the current buffer.
+            /// </summary>
             private string ExtractMatch() //need to address multiple matches
             {
                 //using the entire string, find the last match, search by space sep
                 string[] matches = _builder.ToString().Split(' ', 3);
                 bool foundMatch = false;
 
-                List<CLIVerb> SearchVerbs = new List<CLIVerb>();
-                SearchVerbs.AddRange(AutocompleteTree);
+                List<CLIWord> SearchWords = new List<CLIWord>();
+                SearchWords.AddRange(AutocompleteTree);
 
                 if (_builder.Length > 0)
                 {
@@ -290,23 +320,30 @@ namespace dsc_public
 
                         for (int i = 0; i < matches.Length; i++)
                         {
-                            foreach (CLIVerb eachVerb in SearchVerbs)
+                            foreach (CLIWord eachWord in SearchWords)
                             {
-                                if (eachVerb.IsMatch(matches[i]) && i != lastMatch)
+                                if (eachWord.IsMatch(matches[i]) && i != lastMatch)
                                 {
                                     foundMatch = true;
-                                    SearchVerbs = new List<CLIVerb>();
-                                    SearchVerbs.AddRange(eachVerb.CLISubVerbs);
+                                    SearchWords = new List<CLIWord>();
+                                    SearchWords.AddRange(eachWord.CLISubWords);
                                     break;
                                 }
 
-                                if (eachVerb.IsMatch(matches[i]) && i == lastMatch)
+                                if (eachWord.IsMatch(matches[i]) && i == lastMatch)
                                 {
                                     foundMatch = true;
-                                    if (eachVerb.CompleteName.StartsWith("<r/>")) // if CompleteName starts with <r/> return what matched.
+
+                                    if (Debug >= DebugLevel.Informational)
+                                    {
+                                        Messages.Add($"[DBG] Word matched: {eachWord.CompleteName}");
+                                        Messages.AddRange(eachWord.GetDebugLog());
+                                    }
+
+                                    if (eachWord.CompleteName.StartsWith("<r/>")) // if CompleteName starts with <r/> return what matched.
                                         return matches[i]; //matched value return, task: allow to use group value matches combined with inline static values
                                     else
-                                        return eachVerb.CompleteName; //return static CompleteName
+                                        return eachWord.CompleteName; //return static CompleteName
                                 }
                             }
 
@@ -318,11 +355,14 @@ namespace dsc_public
 
                 return ("");
             }
-            private string ReturnAllMatch(Queue<string> Commands, List<CLIVerb> verbs)
+            /// <summary>
+            /// Recursively builds a complete command string from the autocomplete tree.
+            /// </summary>
+            private string ReturnAllMatch(Queue<string> Commands, List<CLIWord> Words)
             {
                 StringBuilder result = new StringBuilder();
 
-                if (this._Debug)
+                if (Debug > DebugLevel.Warning)
                 {
                     foreach (string command in Commands)
                     {
@@ -334,31 +374,33 @@ namespace dsc_public
                 {
                     string currentCommand = Commands.Peek();
 
-                    foreach (CLIVerb verb in verbs)
+                    foreach (CLIWord Word in Words)
                     {
-                        if (this._Debug)
-                            Console.WriteLine($"verb={verb.CompleteName}");
+                        if (Debug > DebugLevel.Warning)
+                            Console.WriteLine($"Word={Word.CompleteName}");
 
-                        if (Commands.Count > 0 && verb.IsMatch(currentCommand))
+                        if (Commands.Count > 0 && Word.IsMatch(currentCommand))
                         {
-                            if (this._Debug)
-                                Console.WriteLine($"Match found: {verb.CompleteName}");
+                            if (Debug > DebugLevel.Warning)
+                                Console.WriteLine($"Match found: {Word.CompleteName}");
 
-                            if (verb.CompleteName.StartsWith("<r/>"))
+                            if (Debug >= DebugLevel.Informational)
+                            {
+                                Messages.Add($"[DBG] Matched {Word.CompleteName} from \"{currentCommand}\"");
+                                Messages.AddRange(Word.GetDebugLog());
+                            }
+
+                            if (Word.CompleteName.StartsWith("<r/>"))
                                 result.Append($"{currentCommand} ");
                             else
-                                result.Append($"{verb.CompleteName} ");
+                                result.Append($"{Word.CompleteName} ");
 
                             Commands.Dequeue();
 
                             if (Commands.Count > 0)
-                            {
-                                result.Append(ReturnAllMatch(Commands, verb.CLISubVerbs));
-                            }
+                                result.Append(ReturnAllMatch(Commands, Word.CLISubWords));
                             else
-                            {
                                 return result.ToString();
-                            }
                         }
                     }
 
@@ -378,6 +420,9 @@ namespace dsc_public
 
                 return result.ToString();
             }
+            /// <summary>
+            /// Checks whether the current buffer is not in the reserved list.
+            /// </summary>
             private bool IsNotReservedWord(bool caseSensative = false)
             {
                 bool returnValue = true;
@@ -404,6 +449,24 @@ namespace dsc_public
 
                 return returnValue;
             }
+            
+            private void CollectDebugLogs(CLIWord Word)
+            {
+                var logs = Word.GetDebugLog();
+                foreach (var line in logs)
+                {
+                    Messages.Add($"[CLIWord Debug: {Word.CompleteName}] {line}");
+                }
+
+                foreach (var subWord in Word.CLISubWords)
+                {
+                    CollectDebugLogs(subWord);
+                }
+            }
+
+            /// <summary>
+            /// Prints the command history collected during the session.
+            /// </summary>
             public void PrintHistory()
             {
                 if (_CommandList.Count > 0)
@@ -415,103 +478,27 @@ namespace dsc_public
                     }
                 }
             }
+            /// <summary>
+            /// Prints the current autocomplete command tree.
+            /// </summary>
             public void PrintCommandTree()
             {
-                foreach (CLIVerb printTree in this.AutocompleteTree)
+                foreach (CLIWord printTree in this.AutocompleteTree)
                 {
                     Console.WriteLine(printTree.Print());
                 }
             }
+            /// <summary>
+            /// Prints both command tree and history.
+            /// </summary>
             public void PrintEverything()
             {
                 PrintCommandTree();
                 PrintHistory();
             }
-            //private void ClearCurrentLine()
-            //{
-            //    int cursorRow = Console.CursorTop;
-            //    int TotalLength = _builder.ToString().Length + this.Prompt.Length + 1;
-            //    int ClearLength = Console.WindowWidth;
-
-            //    //Console.WriteLine(TotalLength);
-
-            //    if (TotalLength > Console.WindowWidth)
-            //    {
-            //        cursorRow--;
-            //        ClearLength = Console.WindowWidth * 2;
-            //    }
-
-            //    Console.SetCursorPosition(0, cursorRow);
-            //    Console.Write(new string(' ', ClearLength));
-            //    Console.SetCursorPosition(0, cursorRow);
-
-            //    SetConsoleColors(ConsoleColors.Prompt);
-            //    Console.Write(this.Prompt);
-            //    SetConsoleColors(ConsoleColors.Input);
-            //    Console.Write(_builder.ToString());
-
-            //    int x = TotalLength;
-            //    if (x < this.Prompt.Length)
-            //        x = this.Prompt.Length;
-
-            //    //Console.SetCursorPosition(_CursorLocation, currentLine);
-            //    //Console.SetCursorPosition(currentColumn, currentLine);
-            //}
-            //private void ClearCurrentLine()
-            //{
-            //    int windowWidth = Console.WindowWidth;
-            //    int promptLength = this.Prompt.Length;
-            //    int inputLength = _builder.Length;
-            //    int totalLength = promptLength + inputLength;
-
-            //    // Calculate number of console lines used previously
-            //    int previousLineCount = (_LastRenderLength + windowWidth - 1) / windowWidth;
-
-            //    // Clear all rows the previous input occupied
-            //    for (int i = 0; i < previousLineCount; i++)
-            //    {
-            //        int row = _InputOriginTop + i;
-            //        if (row >= Console.BufferHeight)
-            //            break;
-
-            //        Console.SetCursorPosition(0, row);
-            //        Console.Write(new string(' ', windowWidth));
-            //    }
-
-            //    // Reset cursor to the original prompt position
-            //    Console.SetCursorPosition(_InputOriginLeft, _InputOriginTop);
-
-            //    // Redraw prompt
-            //    SetConsoleColors(ConsoleColors.Prompt);
-            //    Console.Write(this.Prompt);
-
-            //    // Redraw input
-            //    SetConsoleColors(ConsoleColors.Input);
-            //    Console.Write(_builder.ToString());
-
-            //    // If this input is shorter than previous, erase leftover characters
-            //    int leftoverPadding = _LastRenderLength - totalLength;
-            //    if (leftoverPadding > 0)
-            //    {
-            //        Console.Write(new string(' ', leftoverPadding));
-            //    }
-
-            //    // Update cursor position
-            //    //int cursorOffset = promptLength + inputLength;
-            //    int cursorOffset = promptLength + _BuilderIndex; //enable left/right arrow movement in the input line
-            //    int finalLeft = (_InputOriginLeft + cursorOffset) % windowWidth;
-            //    int finalTop = _InputOriginTop + (_InputOriginLeft + cursorOffset) / windowWidth;
-
-            //    // Clamp to prevent crash at bottom of console buffer
-            //    int safeTop = Math.Min(finalTop, Console.BufferHeight - 1);
-            //    int safeLeft = Math.Min(finalLeft, Console.BufferWidth - 1);
-
-            //    Console.SetCursorPosition(safeLeft, safeTop);
-
-
-            //    // Save render length for next time
-            //    _LastRenderLength = totalLength;
-            //}
+            /// <summary>
+            /// Clears the current console line and redraws the prompt and buffer.
+            /// </summary>
             private void ClearCurrentLine()
             {
                 int windowWidth = Console.WindowWidth;
@@ -527,10 +514,11 @@ namespace dsc_public
                 int currentLineCount = (totalLength + _InputOriginLeft + windowWidth - 1) / windowWidth;
                 int maxLines = Math.Max(previousLineCount, currentLineCount);
 
-                if (this._Debug)
+                if (Debug > DebugLevel.Informational)
                 {
                     Messages.Add($"[DBG] Redrawing input line. Prompt=\"{Prompt}\", Buffer=\"{_builder}\"");
                     Messages.Add($"[DBG] Cursor offset={_BuilderIndex}, RenderWidth={_LastRenderLength}, WindowWidth={Console.WindowWidth}");
+                    Messages.Add($"[DBG] InputOriginTop={_InputOriginTop}, Console.Top={Console.CursorTop}");
                 }
 
                 // Clear all rows we might have used
@@ -550,7 +538,7 @@ namespace dsc_public
                 SetConsoleColors(ConsoleColors.Prompt);
                 Console.Write(this.Prompt);
 
-                //if (this._Debug)
+                if (Debug > DebugLevel.Informational)
                 {
                     var visualized = new StringBuilder();
                     foreach (char c in _builder.ToString())
@@ -574,18 +562,26 @@ namespace dsc_public
                 }
 
                 // Update cursor position
-                int cursorOffset = promptLength + _BuilderIndex;
-                int finalLeft = (_InputOriginLeft + cursorOffset) % windowWidth;
-                int finalTop = _InputOriginTop + (_InputOriginLeft + cursorOffset) / windowWidth;
+                SetCursorToCurrentIndex();
 
-                Console.SetCursorPosition(
-                    Math.Min(finalLeft, Console.BufferWidth - 1),
-                    Math.Min(finalTop, Console.BufferHeight - 1)
-                );
+                // Detect if buffer scrolled
+                var (actualLeft, actualTop) = Console.GetCursorPosition();
+                if (actualTop > _InputOriginTop + 1)
+                {
+                    int delta = actualTop - (_InputOriginTop + 1);
+                    _InputOriginTop += delta;
+
+                    if (Debug > DebugLevel.Informational)
+                    {
+                        Messages.Add($"[DBG] Console auto-scrolled. Adjusting _InputOriginTop by {delta} → now {_InputOriginTop}");
+                    }
+                }
+
+                AdjustForConsoleScroll();
 
                 // DEBUG: show buffer and tracking info (only if Debug = true)
-               //if (this._Debug)
-               {
+                if (Debug > DebugLevel.Informational)
+                {
                     try
                     {
                         int debugRow = Console.CursorTop;
@@ -595,7 +591,7 @@ namespace dsc_public
                         SetConsoleColors(ConsoleColors.Debug);
                         Messages.Add($"[DBG] builder.Length={_builder.Length}, _LastRenderLength={_LastRenderLength}, prompt={promptLength}, offset={_BuilderIndex}");
                         SetConsoleColors(ConsoleColors.Input);
-                        Console.SetCursorPosition(finalLeft, finalTop);
+                        //Console.SetCursorPosition(finalLeft, finalTop);
                     }
                     catch (Exception debugEx)
                     {
@@ -607,34 +603,41 @@ namespace dsc_public
                 }
 
             }
-
-            private int GetLastVerbLength()
+            /// <summary>
+            /// Returns the length of the last word in the buffer.
+            /// </summary>
+            private int GetLastWordLength()
             {
-                string[] verbs = _builder.ToString().Trim().Split(' ', 3);
+                string[] Words = _builder.ToString().Trim().Split(' ', 3);
 
-                if (verbs.Length > 0)
+                if (Words.Length > 0)
                 {
-                    return verbs[^1].Length;
+                    return Words[^1].Length;
                 }
                 else
                 {
                     return 0;
                 }
             }
+            /// <summary>
+            /// Determines whether a given key is not the single-character help trigger.
+            /// </summary>
             private bool NotSingleHelpChar(System.ConsoleKeyInfo testChar)
             {
                 return testChar.KeyChar != this.SingleHelpChar;
             }
+            /// <summary>
+            /// Moves the internal cursor one position to the left.
+            /// </summary>
             private void MoveLeft()
             {
-                //_CursorRow--;
-
-                //if (_CursorRow < this.Prompt.Length)
-                //    _CursorRow = this.Prompt.Length;
                 //enable left/right arrow movement in the input line:
                 if (_BuilderIndex > 0)
                     _BuilderIndex--;               
             }
+            /// <summary>
+            /// Moves the internal cursor one position to the right.
+            /// </summary>
             private void MoveRight()
             {
                 //_CursorRow++;
@@ -646,28 +649,9 @@ namespace dsc_public
                 if (_BuilderIndex < _builder.Length)
                     _BuilderIndex++;
             }
-            //private void FlushFinalLine()
-            //{
-            //    //Console.SetCursorPosition(_InputOriginLeft, _InputOriginTop);
-            //    //ClearCurrentLine();
-            //    //Console.WriteLine();
-            //    int nextLine = _InputOriginTop + (_InputOriginLeft + Prompt.Length + _builder.Length) / Console.WindowWidth;
-            //    int safeTop = Math.Min(nextLine, Console.BufferHeight - 1);
-            //    Console.SetCursorPosition(0, safeTop);
-            //}
-            //private void FlushFinalLine()
-            //{
-            //    // Move cursor to logical end of input
-            //    int totalInputLength = Prompt.Length + _builder.Length;
-            //    int targetTop = _InputOriginTop + (_InputOriginLeft + totalInputLength) / Console.WindowWidth;
-
-            //    // Avoid overflow
-            //    targetTop = Math.Min(targetTop, Console.BufferHeight - 1);
-
-            //    // Place cursor on new line start
-            //    Console.SetCursorPosition(0, targetTop + 1);
-            //}
-
+            /// <summary>
+            /// Clears the line immediately following the input line.
+            /// </summary>
             private void FlushFinalLine()
             {
                 int promptLength = Prompt.Length;
@@ -685,26 +669,56 @@ namespace dsc_public
                 _LastRenderLength = 0;
 
             }
+            /// <summary>
+            /// Adjusts the tracked origin if the console has auto-scrolled.
+            /// </summary>
+            private void AdjustForConsoleScroll()
+            {
+                var (_, actualTop) = Console.GetCursorPosition();
+                int expectedBottom = _InputOriginTop + (_LastRenderLength + _InputOriginLeft) / Console.WindowWidth;
 
-            private void MoveCursorToInputEnd()
+                if (actualTop > expectedBottom)
+                {
+                    int delta = actualTop - expectedBottom;
+                    _InputOriginTop += delta;
+
+                    if (Debug > DebugLevel.Informational)
+                    {
+                        Messages.Add($"[DBG] Console auto-scrolled: expectedBottom={expectedBottom}, actualTop={actualTop}, adjusted _InputOriginTop to {_InputOriginTop}");
+                    }
+                }
+            }
+            /// <summary>
+            /// Moves the console cursor to match the logical buffer index.
+            /// </summary>
+            private void SetCursorToCurrentIndex()
             {
                 int promptLength = this.Prompt.Length;
-                int inputLength = _builder.Length;
-                int totalOffset = promptLength + inputLength;
-
-                int finalLeft = (_InputOriginLeft + totalOffset) % Console.WindowWidth;
-                int finalTop = _InputOriginTop + (_InputOriginLeft + totalOffset) / Console.WindowWidth;
+                int cursorOffset = promptLength + _BuilderIndex;
+                int finalLeft = (_InputOriginLeft + cursorOffset) % Console.WindowWidth;
+                int finalTop = _InputOriginTop + (_InputOriginLeft + cursorOffset) / Console.WindowWidth;
 
                 Console.SetCursorPosition(
                     Math.Min(finalLeft, Console.BufferWidth - 1),
                     Math.Min(finalTop, Console.BufferHeight - 1)
                 );
+
+                if (Debug > DebugLevel.Informational)
+                {
+                    Messages.Add($"[DBG] Cursor updated: offset={cursorOffset}, top={finalTop}, left={finalLeft}");
+                }
+
+                if (Debug >= DebugLevel.Everything)
+                {
+                    var (x, y) = Console.GetCursorPosition();
+                    Console.SetCursorPosition(x, y);
+                    Console.Write('█'); // cursor marker
+                    Console.SetCursorPosition(x, y); // reset
+                }
             }
-
-
-
-
-
+            /// <summary>
+            /// Processes a key input event and updates the buffer accordingly.
+            /// </summary>
             private void HandleKeyInput(ConsoleKeyInfo keyInput)
             {
                 switch (keyInput.Key)
@@ -715,8 +729,8 @@ namespace dsc_public
                         if (match != "")
                         {
                             Console.WriteLine();
-                            int xchars = GetLastVerbLength();
-                            _builder.Length = (_builder.Length - xchars); //this replaces characters typed at this level of the verb
+                            int xchars = GetLastWordLength();
+                            _builder.Length = (_builder.Length - xchars); //this replaces characters typed at this level of the Word
                             _builder.Append(match + " ");
                             _BuilderIndex = _builder.Length; //enable left/right arrow movement in the input line
                             _CursorRow = _builder.Length + Prompt.Length;
@@ -727,15 +741,6 @@ namespace dsc_public
                         break;
 
                     case ConsoleKey.Backspace:
-                        //if (_builder.ToString().Length > 0)
-                        //{
-                        //    _builder.Remove(_builder.Length - 1, 1);
-                        //    _BuilderIndex--; //enable left/right arrow movement in the input line
-                        //}
-
-                        //ClearCurrentLine();
-
-                        //break;
                         if (_BuilderIndex > 0 && _builder.Length > 0)
                         {
                             _builder.Remove(_BuilderIndex - 1, 1);
@@ -800,14 +805,12 @@ namespace dsc_public
 
                     case ConsoleKey.RightArrow:
                         MoveRight();
-
                         ClearCurrentLine();
 
                         break;
 
                     case ConsoleKey.LeftArrow:
                         MoveLeft();
-
                         ClearCurrentLine();
 
                         break;
@@ -826,14 +829,10 @@ namespace dsc_public
 
                         if (AddCharacter)
                         {
-                            //_builder.Append(keyInput.KeyChar);
-
-                            //// Print Results
-                            //Console.Write(keyInput.KeyChar);
-
                             if (char.IsControl(keyInput.KeyChar) && keyInput.KeyChar != '\t')
                             {
-                                Messages.Add($"[DBG] Ignored control character: 0x{(int)keyInput.KeyChar:X2}");
+                                if (Debug > DebugLevel.Informational)
+                                    Messages.Add($"[DBG] Ignored control character: 0x{(int)keyInput.KeyChar:X2}");
                                 break;
                             }
                             // enable left/right arrow movement in the input line:
@@ -843,29 +842,47 @@ namespace dsc_public
                         }
                         break;
                 }
+                
+                if (keyInput.Key != ConsoleKey.Tab)
+                    SetCursorToCurrentIndex();
             }
+            /// <summary>
+            /// Checks if the captured character is not Enter.
+            /// </summary>
             private static bool EnterIsNotThe(ConsoleKeyInfo capturedCharacter)
             {
                 return capturedCharacter.Key != ConsoleKey.Enter;
             }
-            public void AddVerb(string addVerb)
+            /// <summary>
+            /// Adds a simple Word to the autocomplete tree.
+            /// </summary>
+            public void AddWord(string addWord)
             {
-                CLIVerb simpleVerb = new CLIVerb(addVerb);
+                CLIWord simpleWord = new CLIWord(addWord);
 
-                this.AddVerb(simpleVerb);
+                this.AddWord(simpleWord);
             }
-            public void AddVerb(string newVerb, string newRegex, string newHelp)
+            /// <summary>
+            /// Adds a new Word with regex and help text to the autocomplete tree.
+            /// </summary>
+            public void AddWord(string newWord, string newRegex, string newHelp)
             {
-                CLIVerb addCLIVerb = new CLIVerb(newVerb, newRegex, newHelp);
+                CLIWord addCLIWord = new CLIWord(newWord, newRegex, newHelp);
 
-                this.AddVerb(addCLIVerb);
+                this.AddWord(addCLIWord);
             }
-            public void AddVerb(CLIVerb addCLIVerb)
+            /// <summary>
+            /// Adds a custom CLIWord to the autocomplete tree.
+            /// </summary>
+            public void AddWord(CLIWord addCLIWord)
             {
-                if (addCLIVerb.CompleteName.Length > this._MaxCommandLength) { _MaxCommandLength = addCLIVerb.CompleteName.Length; }
+                if (addCLIWord.CompleteName.Length > this._MaxCommandLength) { _MaxCommandLength = addCLIWord.CompleteName.Length; }
 
-                this.AutocompleteTree.Add(addCLIVerb);
+                this.AutocompleteTree.Add(addCLIWord);
             }
+            /// <summary>
+            /// Sets the console's foreground and background colors.
+            /// </summary>
             private bool SetConsoleColors(ForeBack newColors)
             {
                 bool Result = false;
@@ -885,15 +902,23 @@ namespace dsc_public
                 return Result;
             }
         }
-        ///
-        public class CLIVerb : IComparable<CLIVerb>
+        /// <summary>
+        /// Represents a command-line Word that supports autocomplete, help, and hierarchical subcommands.
+        /// </summary>
+        public class CLIWord : IComparable<CLIWord>
         {
+            /// <summary>
+            /// Full name of the command Word (e.g., "start", "run").
+            /// </summary>
             public string CompleteName { get; set; } = "";
+            /// <summary>Name shown in menus or help text. Defaults to <see cref="CompleteName"/> if unset.</summary>
             public string DisplayName { get; set; } = "";
+            /// <summary>Example usage of the command, shown in help outputs.</summary>
             public string Usage { get; set; } = "";
+            /// <summary>Group identifier used to cluster related Words in output or sorting.</summary>
             public int GroupID { get; set; } = 10;
+            /// <summary>Relative order within its group for display or sorting.</summary>
             public int OrderID { get; set; } = 1;
-
             /// <summary>
             /// Regex examples:
             ///   Autocomplete for today:
@@ -902,34 +927,58 @@ namespace dsc_public
             /// Simple way to use AutoComplete is just put the first couple of letters in the same Regex property such as: to
             /// </summary>
             public string Regex { get; set; } = "";
+            /// <summary>Help string describing what this Word does.</summary>
             public string Help { get; set; } = "";
+            /// <summary>Long-form description of the Word, potentially multiline.</summary>
             public string Description { get; set; } = "";
+            /// <summary>Whether this Word should be hidden from help and autocomplete lists.</summary>
             public bool Hidden { get; set; } = false;
-            private int DebugCount = 0;
-            private string DebugLog = "";
-            public List<CLIVerb> CLISubVerbs { get; set; } = new List<CLIVerb>();
-            
-            public CLIVerb(string fullName, string regex, string help, List<CLIVerb> subverbs, string displayname = "")
+            //private int DebugCount = 0;
+            private List<string> DebugLog = new List<string>();
+            /// <summary>List of sub-Words that are children of this command.</summary>
+            public List<CLIWord> CLISubWords { get; set; } = new List<CLIWord>();
+            /// <summary>
+            /// Initializes a CLIWord with full parameters and subWord list.
+            /// </summary>
+            /// <param name="fullName">The full command name.</param>
+            /// <param name="regex">Regex pattern for matching input.</param>
+            /// <param name="help">Help description.</param>
+            /// <param name="subWords">Subcommands of this Word.</param>
+            /// <param name="displayname">Optional display name override.</param>
+            public CLIWord(string fullName, string regex, string help, List<CLIWord> subWords, string displayname = "")
             {
                 CompleteName = fullName;
                 Regex = regex;
                 Help = help;
-                CLISubVerbs = subverbs;
+                CLISubWords = subWords;
                 DisplayName = displayname;
-                AddDebug("Initialized with completename,regex,help,subverbs");
+                AddDebug("Initialized with completename,regex,help,subWords");
             }
-
-            public CLIVerb(string completename, string regex, string help, CLIVerb subverb, string displayname = "")
+            /// <summary>
+            /// Initializes a CLIWord with one subWord.
+            /// </summary>
+            /// <param name="completename">The full command name.</param>
+            /// <param name="regex">Regex pattern for matching input.</param>
+            /// <param name="help">Help description.</param>
+            /// <param name="subWord">Single subcommand.</param>
+            /// <param name="displayname">Optional display name override.</param>
+            public CLIWord(string completename, string regex, string help, CLIWord subWord, string displayname = "")
             {
                 CompleteName = completename;
                 Regex = regex;
                 Help = help;
                 DisplayName = displayname;
-                CLISubVerbs.Add(subverb);
-                AddDebug("Initialized with completename,regex,help,subverb");
+                CLISubWords.Add(subWord);
+                AddDebug("Initialized with completename,regex,help,subWord");
             }
-
-            public CLIVerb(string completename, string regex, string help, string displayname = "")
+            /// <summary>
+            /// Initializes a CLIWord with name, regex, help, and optional display name.
+            /// </summary>
+            /// <param name="completename">The full command name.</param>
+            /// <param name="regex">Regex pattern for matching input.</param>
+            /// <param name="help">Help description.</param>
+            /// <param name="displayname">Optional display name override.</param>
+            public CLIWord(string completename, string regex, string help, string displayname = "")
             {
                 CompleteName = completename;
                 Regex = regex;
@@ -940,8 +989,13 @@ namespace dsc_public
                     DisplayName = displayname;
                 AddDebug("Initialized with completename,regex,help");
             }
-
-            public CLIVerb(string completename, string regex, string displayname = "")
+            /// <summary>
+            /// Initializes a CLIWord with name and regex only, display name optional.
+            /// </summary>
+            /// <param name="completename">The full command name.</param>
+            /// <param name="regex">Regex pattern for matching input.</param>
+            /// <param name="displayname">Optional display name override.</param>
+            public CLIWord(string completename, string regex, string displayname = "")
             {
                 CompleteName = completename;
                 if (displayname == "")
@@ -951,8 +1005,58 @@ namespace dsc_public
                 Regex = regex;
                 AddDebug("Initialized with completename,regex");
             }
+            public CLIWord(string completename, string regex, string help, int OrderID, string displayname = "", bool Hidden = false, int GroupID = 10)
+            {
+                CompleteName = completename;
+                Regex = regex;
+                Help = help;
+                if (displayname == "")
+                    DisplayName = completename;
+                else
+                    DisplayName = displayname;
+                this.OrderID = OrderID;
+                this.GroupID = GroupID;
+                this.Hidden = Hidden;
+                AddDebug("Initialized completename, regex, help, OrderID, displayname, Hidden, GroupID");
+            }
+            //public CLIWord(string completename, int RegexStartMatchIndex, string help, int OrderID, string displayname = "", bool Hidden = false, int GroupID = 10)
+            //{
+            //    CompleteName = completename;
+            //    Regex = BuildRegexWithIndex(completename, RegexStartMatchIndex);
+            //    Help = help;
+            //    if (displayname == "")
+            //        DisplayName = completename;
+            //    else
+            //        DisplayName = displayname;
+            //    this.OrderID = OrderID;
+            //    this.GroupID = GroupID;
+            //    this.Hidden = Hidden;
+            //    AddDebug("Initialized completename, RegestStartMatchIndex, help, OrderID, displayname, Hidden, GroupID");
+            //}
+            public CLIWord(string completename, int RegexStartMatchIndex, string help, int OrderID, string AdditionalRegex = "", string displayname = "", bool Hidden = false, int GroupID = 10)
+            {
+                CompleteName = completename;
+                Regex = string.IsNullOrWhiteSpace(AdditionalRegex)
+                    ? BuildRegexWithIndex(completename, RegexStartMatchIndex)
+                    : $"{BuildRegexWithIndex(completename, RegexStartMatchIndex)}|{AdditionalRegex}";
 
-            public CLIVerb(string completename, string regex, string help, int OrderID, bool Hidden = false, int GroupID = 10)
+                Help = help;
+
+                this.OrderID = OrderID;
+                this.GroupID = GroupID;
+                this.Hidden = Hidden;
+                AddDebug("Initialized completename, RegestStartMatchIndex, AdditionalRegex, help, OrderID, displayname, Hidden, GroupID");
+            }
+            /// <summary>
+            /// Initializes a CLIWord with sort and visibility metadata.
+            /// </summary>
+            /// <param name="completename">The full command name.</param>
+            /// <param name="regex">Regex pattern.</param>
+            /// <param name="help">Help string.</param>
+            /// <param name="OrderID">Display order ID.</param>
+            /// <param name="Hidden">Whether the Word is hidden.</param>
+            /// <param name="GroupID">Group the Word belongs to.</param>
+            public CLIWord(string completename, string regex, string help, int OrderID, bool Hidden = false, int GroupID = 10)
             {
                 CompleteName = completename;
                 DisplayName = completename;
@@ -964,8 +1068,17 @@ namespace dsc_public
                 this.Hidden = Hidden;
                 AddDebug("Initialized with completename,regex,help,orderid,groupid");
             }
-
-            public CLIVerb(string completename, string regex, string help, string usage, int OrderID, bool Hidden = false, int GroupID = 10)
+            /// <summary>
+            /// Initializes a CLIWord with complete display and behavior configuration.
+            /// </summary>
+            /// <param name="completename">The full command name.</param>
+            /// <param name="regex">Regex pattern.</param>
+            /// <param name="help">Help string.</param>
+            /// <param name="usage">Usage description.</param>
+            /// <param name="OrderID">Display order.</param>
+            /// <param name="Hidden">Whether hidden from menus.</param>
+            /// <param name="GroupID">Word grouping ID.</param>
+            public CLIWord(string completename, string regex, string help, string usage, int OrderID, bool Hidden = false, int GroupID = 10)
             {
                 CompleteName = completename;
                 DisplayName = completename;
@@ -978,27 +1091,81 @@ namespace dsc_public
                 AddDebug("Initialized with completename,regex,help,usage,orderid,groupid"); ;
             }
 
-            public CLIVerb(string completename, string displayname = "")
+            public CLIWord(string completename, int RegexStartMatchIndex, string usage, int OrderID = 1, string displayname = "", string AdditionalRegex = "", string help = "", bool Hidden = false, int GroupID = 10)
+            {
+                CompleteName = completename;
+                DisplayName = completename;
+                Help = help;
+                Regex = string.IsNullOrWhiteSpace(AdditionalRegex)
+                    ? BuildRegexWithIndex(completename, RegexStartMatchIndex)
+                    : $"{BuildRegexWithIndex(completename, RegexStartMatchIndex)}|{AdditionalRegex}";
+                DisplayName = string.IsNullOrEmpty(displayname) ? completename : displayname;
+                Usage = usage;
+                this.OrderID = OrderID;
+                this.GroupID = GroupID;
+                this.Hidden = Hidden;
+                AddDebug("Initialized with completename,regex,help,usage,orderid,groupid"); ;
+            }
+            /// <summary>
+            /// Initializes a CLIWord with a name and optional display name.
+            /// </summary>
+            /// <param name="completename">The Word name.</param>
+            /// <param name="displayname">Optional display name.</param>
+            public CLIWord(string completename, string displayname = "")
             {
                 CompleteName = completename;
                 AddDebug("Initialized with completename only");
             }
-
-            public CLIVerb()
+            /// <summary>
+            /// Default constructor.
+            /// </summary>
+            public CLIWord()
             {
                 AddDebug("Initialized with no parameters");
             }
 
             private void AddDebug(string Message)
             {
-                this.DebugLog += Message + "\r\n";
+                this.DebugLog.Add(Message);
             }
 
-            private void AddDebug(int AddCount)
+            public void ClearDebugLog()
             {
-                this.DebugCount += AddCount;
+                this.DebugLog.Clear();
             }
 
+            public string BuildRegexWithIndex(string input, int requiredIndex)
+            {
+                if (string.IsNullOrEmpty(input))
+                    throw new ArgumentException("Input string cannot be null or empty.");
+
+                if (requiredIndex < 0 || requiredIndex >= input.Length)
+                    throw new ArgumentOutOfRangeException(nameof(requiredIndex), "Index must be within the bounds of the string.");
+
+                // Start with required prefix
+                string pattern = "^" + input.Substring(0, requiredIndex + 1);
+
+                // Add nested optional groups
+                for (int i = requiredIndex + 1; i < input.Length; i++)
+                {
+                    pattern += "(" + input[i];
+                }
+
+                // Close groups with ? to make them optional
+                for (int i = requiredIndex + 1; i < input.Length; i++)
+                {
+                    pattern += ")?";
+                }
+
+                pattern += "$";
+                return pattern;
+            }
+
+            /// <summary>
+            /// Sets the Regex property after validation.
+            /// </summary>
+            /// <param name="newRegex">New regex pattern to assign.</param>
+            /// <returns>True if valid, false otherwise.</returns>
             public bool SetRegex(string newRegex)
             {
                 bool ReturnValue = true;
@@ -1016,16 +1183,17 @@ namespace dsc_public
                 return ReturnValue;
             }
 
-            public int GetDebugCount()
-            {
-                return this.DebugCount;
-            }
-
-            public string GetDebugLog()
+            /// <summary>
+            /// Returns the full debug log as a string.
+            /// </summary>
+            public List<string> GetDebugLog()
             {
                 return this.DebugLog;
             }
-
+            /// <summary>
+            /// Returns a printable string representation of this Word and subWords.
+            /// </summary>
+            /// <param name="index">Indent level for nested printing. Default is 0.</param>
             public string Print(int index = 0)
             {
                 string ReturnValue = "";
@@ -1044,58 +1212,93 @@ namespace dsc_public
 
                 index++;
 
-                if (CLISubVerbs.Count > 0)
+                if (CLISubWords.Count > 0)
                 {
-                    foreach (CLIVerb cliSubVerb in CLISubVerbs)
+                    foreach (CLIWord cliSubWord in CLISubWords)
                     {
-                        ReturnValue += cliSubVerb.Print(index);
+                        ReturnValue += cliSubWord.Print(index);
                     }
                 }
 
                 return ReturnValue;
             }
+            /// <summary>
+            /// Tests whether the given search string matches this Word's regex.
+            /// </summary>
+            /// <param name="search">The string to test.</param>
+            /// <returns>True if matched.</returns>
 
             public bool IsMatch(string search)
             {
-                Regex findMatch = new Regex(this.Regex, RegexOptions.IgnoreCase);
-                if (findMatch.Match(search).Success)
+                try
                 {
-                    return true;
+                    if (!string.IsNullOrWhiteSpace(this.Regex))
+                    {
+                        Regex findMatch = new Regex(this.Regex, RegexOptions.IgnoreCase);
+                        return findMatch.IsMatch(search);
+                    }
+                }
+                catch (ArgumentException ex)
+                {
+                    // Add diagnostic log if needed
+                    DebugLog.Add($"[Regex Error] Pattern=\"{this.Regex}\" Exception={ex.Message}\n");
                 }
 
-                return false;
+                // Fallback: full-word, case-insensitive match if regex failed or was empty
+                return string.Equals(this.CompleteName, search, StringComparison.OrdinalIgnoreCase);
             }
 
-            public void AddSubVerb(string newSubVerb, string newDisplayName = "")
+            /// <summary>
+            /// Adds a subWord using just its name and optional display name.
+            /// </summary>
+            public void AddSubWord(string newSubWord, string newDisplayName = "")
             {
-                CLIVerb addVerb = new CLIVerb(completename: newSubVerb, displayname: newDisplayName);
-                CLISubVerbs.Add(addVerb);
+                CLIWord addWord = new CLIWord(completename: newSubWord, displayname: newDisplayName);
+                CLISubWords.Add(addWord);
             }
-
-            public void AddSubVerb(string newSubVerb, string newRegex, string newDisplayName = "")
+            /// <summary>
+            /// Adds a subWord using a name and regex pattern.
+            /// </summary>
+            public void AddSubWord(string newSubWord, string newRegex, string newDisplayName = "")
             {
-                CLIVerb addVerb = new CLIVerb(completename: newSubVerb, regex: newRegex, displayname: newDisplayName);
-                CLISubVerbs.Add(addVerb);
+                CLIWord addWord = new CLIWord(completename: newSubWord, regex: newRegex, displayname: newDisplayName);
+                CLISubWords.Add(addWord);
             }
-
-            public void AddSubVerb(string newSubVerb, string newRegex, string newHelp, string newDisplayName = "")
+            /// <summary>
+            /// Adds a subWord with help text and pattern.
+            /// </summary>
+            public void AddSubWord(string newSubWord, string newRegex, string newHelp, string newDisplayName = "")
             {
-                CLIVerb addVerb = new CLIVerb(completename: newSubVerb, regex: newRegex, help: newHelp, displayname: newDisplayName);
-                CLISubVerbs.Add(addVerb);
+                CLIWord addWord = new CLIWord(completename: newSubWord, regex: newRegex, help: newHelp, displayname: newDisplayName);
+                CLISubWords.Add(addWord);
             }
-
-            public void AddSubVerb(string newSubVerb, string newRegex, string newHelp, CLIVerb subVerb, string newDisplayName = "")
+            /// <summary>
+            /// Adds a subWord and attaches another Word as a nested child.
+            /// </summary>
+            public void AddSubWord(string newSubWord, string newRegex, string newHelp, CLIWord subWord, string newDisplayName = "")
             {
-                CLIVerb addVerb = new CLIVerb(completename: newSubVerb, regex: newRegex, help: newHelp, subverb: subVerb, displayname: newDisplayName);
-                CLISubVerbs.Add(addVerb);
+                CLIWord addWord = new CLIWord(completename: newSubWord, regex: newRegex, help: newHelp, subWord: subWord, displayname: newDisplayName);
+                CLISubWords.Add(addWord);
             }
-
-            public void AddSubVerb(CLIVerb newSubVerb)
+            /// <summary>
+            /// Adds an existing CLIWord instance as a subWord.
+            /// </summary>
+            public void AddSubWord(CLIWord newSubWord)
             {
-                CLISubVerbs.Add(newSubVerb);
+                CLISubWords.Add(newSubWord);
             }
-
-            public int CompareTo(CLIVerb other)
+            /// <summary>
+            /// Compares the current instance with another CLIWord and returns an integer that indicates
+            /// whether the current instance precedes, follows, or occurs in the same position as the other in the sort order.
+            /// </summary>
+            /// <param name="other">The CLIWord to compare to this instance.</param>
+            /// <returns>
+            /// A value that indicates the relative order:
+            /// Less than 0 — this instance precedes <paramref name="other"/>.
+            /// 0 — same position.
+            /// Greater than 0 — this instance follows <paramref name="other"/>.
+            /// </returns>
+            public int CompareTo(CLIWord? other)
             {
                 if (other == null) return 1;
 
@@ -1109,47 +1312,6 @@ namespace dsc_public
                     return this.OrderID.CompareTo(other.OrderID);
                 }
             }
-
-            /*
-            public bool FindVerbMatch(string search)
-            {
-                bool returnValue = false;  //default to false
-
-                //Console.WriteLine();
-                //Console.WriteLine(this.Verb);
-
-                switch (this.FullName)
-                {
-                    case string test when test.StartsWith("<r/>"):
-
-                        //Console.Beep();
-
-                        //Console.WriteLine();
-                        //Console.WriteLine("Matching on regex");
-                        string pattern = this.FullName[4..];
-                        //Console.WriteLine(pattern);
-                        Regex findMatch = new Regex(pattern, RegexOptions.IgnoreCase);
-                        if (findMatch.Match(search).Success)
-                        {
-                            returnValue = true;
-                        }
-
-                        break;
-
-                    case string test when test.StartsWith(search.Trim(), StringComparison.CurrentCultureIgnoreCase):
-
-                        returnValue = true;
-
-                        break;
-                }
-
-                //Startswith will match on Empty string due to every string starts with empty. This should always be false.
-                if (search == String.Empty)
-                    returnValue = false;
-
-                return returnValue;
-            }
-            */
         }
     }
 }
