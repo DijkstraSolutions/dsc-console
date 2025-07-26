@@ -43,8 +43,8 @@ CLIWord newWord = new CLIWord();
 CLIWord newSubWord = new CLIWord();
 
 //Create a new word called service order, make it so you need to type at least se OR -so before pressing tab will work,
-  sets the help message and usage mesages. Controls the index number, whether to mark it hidden (still works with tab - auto complete).
-  Sets the group number (you can group commands together on the same level)
+//  sets the help message and usage mesages. Controls the index number, whether to mark it hidden (still works with tab - auto complete).
+//Sets the group number (you can group commands together on the same level)
 newWord = new CLIWord("service-order", RegexStartMatchIndex: 1, AdditionalRegex: "^-so$", help: "Sets the Service Order number for the current context.", usage: "so [so ID] | service-order [so ID]", OrderID: order++, Hidden: false, GroupID: 20);
 
 //Sets a subword to service-order, first one is a pur regex value (<r/> says return the match), its usage, help and command order.
