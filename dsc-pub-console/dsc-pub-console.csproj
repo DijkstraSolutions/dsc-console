@@ -1,10 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <RootNamespace>dsc_pub_console</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <PackageId>AutoConsole</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Walter Holm</Authors>
+    <Description>A console auto-complete library for CLI apps.</Description>
+    <PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/DijkstraSolutions/dsc-console</RepositoryUrl>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
 </Project>
