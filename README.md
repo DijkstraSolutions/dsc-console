@@ -4,6 +4,8 @@ Provides a means to add "words" and nested "words" to your command line applicat
 
 This project will build a DLL that you can include in your project.
 
+It is also available as a NuGet package!
+
 See [Example.cs](./Example.cs) on how to do an easy one level implementation.
 
 To nest, you might want to work backwards, start with the AutoCompletes at the end of the command
