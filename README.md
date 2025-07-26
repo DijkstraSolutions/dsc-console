@@ -1,4 +1,4 @@
-# dsc-pub-console
+# AutoConsole
 
 Provides a means to add "words" and nested "words" to your command line application.
 
