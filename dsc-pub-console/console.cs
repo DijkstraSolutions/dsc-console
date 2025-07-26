@@ -499,6 +499,111 @@ namespace dsc_public
             /// <summary>
             /// Clears the current console line and redraws the prompt and buffer.
             /// </summary>
+            //private void ClearCurrentLine()
+            //{
+            //    int windowWidth = Console.WindowWidth;
+            //    int promptLength = this.Prompt.Length;
+            //    int inputLength = _builder.Length;
+            //    int totalLength = promptLength + inputLength;
+
+            //    int previousLength = _LastRenderLength;
+            //    _LastRenderLength = totalLength;
+
+            //    // Total console columns used previously vs now
+            //    int previousLineCount = (previousLength + _InputOriginLeft + windowWidth - 1) / windowWidth;
+            //    int currentLineCount = (totalLength + _InputOriginLeft + windowWidth - 1) / windowWidth;
+            //    int maxLines = Math.Max(previousLineCount, currentLineCount);
+
+            //    if (Debug > DebugLevel.Informational)
+            //    {
+            //        Messages.Add($"[DBG] Redrawing input line. Prompt=\"{Prompt}\", Buffer=\"{_builder}\"");
+            //        Messages.Add($"[DBG] Cursor offset={_BuilderIndex}, RenderWidth={_LastRenderLength}, WindowWidth={Console.WindowWidth}");
+            //        Messages.Add($"[DBG] InputOriginTop={_InputOriginTop}, Console.Top={Console.CursorTop}");
+            //    }
+
+            //    // Clear all rows we might have used
+            //    for (int i = 0; i < maxLines; i++)
+            //    {
+            //        int row = _InputOriginTop + i;
+            //        if (row >= Console.BufferHeight) break;
+
+            //        Console.SetCursorPosition(0, row);
+            //        Console.Write(new string(' ', windowWidth));
+            //    }
+
+            //    // Reset to input start
+            //    Console.SetCursorPosition(_InputOriginLeft, _InputOriginTop);
+
+            //    // Redraw prompt
+            //    SetConsoleColors(ConsoleColors.Prompt);
+            //    Console.Write(this.Prompt);
+
+            //    if (Debug > DebugLevel.Informational)
+            //    {
+            //        var visualized = new StringBuilder();
+            //        foreach (char c in _builder.ToString())
+            //        {
+            //            if (c == '\r') visualized.Append("<CR>");
+            //            else if (c == '\n') visualized.Append("<LF>");
+            //            else visualized.Append(c);
+            //        }
+            //        Messages.Add($"[DBG] Visual buffer = [{visualized}]");
+            //    }
+
+            //    // Redraw buffer
+            //    SetConsoleColors(ConsoleColors.Input);
+            //    Console.Write(_builder.ToString());
+
+            //    // Erase trailing characters from longer previous render
+            //    int leftover = previousLength - totalLength;
+            //    if (leftover > 0)
+            //    {
+            //        Console.Write(new string(' ', leftover));
+            //    }
+
+            //    // Update cursor position
+            //    SetCursorToCurrentIndex();
+
+            //    // Detect if buffer scrolled
+            //    var (actualLeft, actualTop) = Console.GetCursorPosition();
+            //    if (actualTop > _InputOriginTop + 1)
+            //    {
+            //        int delta = actualTop - (_InputOriginTop + 1);
+            //        _InputOriginTop += delta;
+
+            //        if (Debug > DebugLevel.Informational)
+            //        {
+            //            Messages.Add($"[DBG] Console auto-scrolled. Adjusting _InputOriginTop by {delta} → now {_InputOriginTop}");
+            //        }
+            //    }
+
+            //    AdjustForConsoleScroll();
+
+            //    // DEBUG: show buffer and tracking info (only if Debug = true)
+            //    if (Debug > DebugLevel.Informational)
+            //    {
+            //        try
+            //        {
+            //            int debugRow = Console.CursorTop;
+            //            int debugLeft = 0;
+
+            //            Console.SetCursorPosition(debugLeft, debugRow + 1);
+            //            SetConsoleColors(ConsoleColors.Debug);
+            //            Messages.Add($"[DBG] builder.Length={_builder.Length}, _LastRenderLength={_LastRenderLength}, prompt={promptLength}, offset={_BuilderIndex}");
+            //            SetConsoleColors(ConsoleColors.Input);
+            //            //Console.SetCursorPosition(finalLeft, finalTop);
+            //        }
+            //        catch (Exception debugEx)
+            //        {
+            //            SetConsoleColors(ConsoleColors.Error);
+            //            Console.SetCursorPosition(0, Console.CursorTop);
+            //            Messages.Add($"[DBG ERROR] {debugEx.Message}");
+            //            SetConsoleColors(ConsoleColors.Main);
+            //        }
+            //    }
+
+            //}
+
             private void ClearCurrentLine()
             {
                 int windowWidth = Console.WindowWidth;
@@ -509,7 +614,6 @@ namespace dsc_public
                 int previousLength = _LastRenderLength;
                 _LastRenderLength = totalLength;
 
-                // Total console columns used previously vs now
                 int previousLineCount = (previousLength + _InputOriginLeft + windowWidth - 1) / windowWidth;
                 int currentLineCount = (totalLength + _InputOriginLeft + windowWidth - 1) / windowWidth;
                 int maxLines = Math.Max(previousLineCount, currentLineCount);
@@ -517,22 +621,23 @@ namespace dsc_public
                 if (Debug > DebugLevel.Informational)
                 {
                     Messages.Add($"[DBG] Redrawing input line. Prompt=\"{Prompt}\", Buffer=\"{_builder}\"");
-                    Messages.Add($"[DBG] Cursor offset={_BuilderIndex}, RenderWidth={_LastRenderLength}, WindowWidth={Console.WindowWidth}");
+                    Messages.Add($"[DBG] Cursor offset={_BuilderIndex}, RenderWidth={_LastRenderLength}, WindowWidth={windowWidth}");
                     Messages.Add($"[DBG] InputOriginTop={_InputOriginTop}, Console.Top={Console.CursorTop}");
                 }
 
-                // Clear all rows we might have used
+                // Clear all rows we might have used, with clamps
                 for (int i = 0; i < maxLines; i++)
                 {
                     int row = _InputOriginTop + i;
+                    if (row < 0) continue;
                     if (row >= Console.BufferHeight) break;
 
                     Console.SetCursorPosition(0, row);
                     Console.Write(new string(' ', windowWidth));
                 }
 
-                // Reset to input start
-                Console.SetCursorPosition(_InputOriginLeft, _InputOriginTop);
+                // Reset to input start, clamped
+                Console.SetCursorPosition(_InputOriginLeft, Math.Max(0, _InputOriginTop));
 
                 // Redraw prompt
                 SetConsoleColors(ConsoleColors.Prompt);
@@ -554,6 +659,9 @@ namespace dsc_public
                 SetConsoleColors(ConsoleColors.Input);
                 Console.Write(_builder.ToString());
 
+                // Adjust for any scroll that occurred during the write
+                AdjustForConsoleScroll();
+
                 // Erase trailing characters from longer previous render
                 int leftover = previousLength - totalLength;
                 if (leftover > 0)
@@ -564,45 +672,75 @@ namespace dsc_public
                 // Update cursor position
                 SetCursorToCurrentIndex();
 
-                // Detect if buffer scrolled
-                var (actualLeft, actualTop) = Console.GetCursorPosition();
-                if (actualTop > _InputOriginTop + 1)
+                if (Debug > DebugLevel.Informational)
                 {
-                    int delta = actualTop - (_InputOriginTop + 1);
-                    _InputOriginTop += delta;
+                    var (x, y) = Console.GetCursorPosition();
+                    Messages.Add($"[DBG] Cursor updated: offset={promptLength + _BuilderIndex}, top={y}, left={x}");
+                }
+
+                if (Debug >= DebugLevel.Everything)
+                {
+                    var (x, y) = Console.GetCursorPosition();
+                    Console.SetCursorPosition(x, y);
+                    Console.Write('█'); // cursor marker for extreme debugging
+                    Console.SetCursorPosition(x, y); // reset
+                }
+            }
+
+            private void AdjustForConsoleScroll()
+            {
+                var (_, actualTop) = Console.GetCursorPosition();
+
+                // Calculate expected cursor top assuming no scroll (at end of input)
+                int offset = this.Prompt.Length + _builder.Length;
+                int expectedCursorTop = _InputOriginTop + (_InputOriginLeft + offset - 1) / Console.WindowWidth;
+
+                if (actualTop < expectedCursorTop)
+                {
+                    int delta = expectedCursorTop - actualTop;
+                    _InputOriginTop -= delta;
+                    _InputOriginTop = Math.Max(0, _InputOriginTop); // Clamp to prevent negative
 
                     if (Debug > DebugLevel.Informational)
                     {
-                        Messages.Add($"[DBG] Console auto-scrolled. Adjusting _InputOriginTop by {delta} → now {_InputOriginTop}");
+                        Messages.Add($"[DBG] Console auto-scrolled up. ExpectedTop={expectedCursorTop}, ActualTop={actualTop}, Delta={delta}, New OriginTop={_InputOriginTop}");
                     }
                 }
+                else if (Debug > DebugLevel.Informational && actualTop != expectedCursorTop)
+                {
+                    Messages.Add($"[DBG] No scroll detected. ExpectedTop={expectedCursorTop}, ActualTop={actualTop}");
+                }
+            }
 
-                AdjustForConsoleScroll();
+            private void SetCursorToCurrentIndex()
+            {
+                int promptLength = this.Prompt.Length;
+                int cursorOffset = promptLength + _BuilderIndex;
+                int rowIncrement = (_InputOriginLeft + cursorOffset - 1) / Console.WindowWidth;
+                int finalTop = Math.Max(0, Math.Min(_InputOriginTop + rowIncrement, Console.BufferHeight - 1));
+                int finalLeft = (_InputOriginLeft + cursorOffset) % Console.WindowWidth;
 
-                // DEBUG: show buffer and tracking info (only if Debug = true)
+                Console.SetCursorPosition(finalLeft, finalTop);
+
                 if (Debug > DebugLevel.Informational)
                 {
-                    try
-                    {
-                        int debugRow = Console.CursorTop;
-                        int debugLeft = 0;
-
-                        Console.SetCursorPosition(debugLeft, debugRow + 1);
-                        SetConsoleColors(ConsoleColors.Debug);
-                        Messages.Add($"[DBG] builder.Length={_builder.Length}, _LastRenderLength={_LastRenderLength}, prompt={promptLength}, offset={_BuilderIndex}");
-                        SetConsoleColors(ConsoleColors.Input);
-                        //Console.SetCursorPosition(finalLeft, finalTop);
-                    }
-                    catch (Exception debugEx)
-                    {
-                        SetConsoleColors(ConsoleColors.Error);
-                        Console.SetCursorPosition(0, Console.CursorTop);
-                        Messages.Add($"[DBG ERROR] {debugEx.Message}");
-                        SetConsoleColors(ConsoleColors.Main);
-                    }
+                    Messages.Add($"[DBG] Cursor updated: offset={cursorOffset}, top={finalTop}, left={finalLeft}");
                 }
-
             }
+
+            private void FlushFinalLine()
+            {
+                int promptLength = Prompt.Length;
+                int totalInputLength = promptLength + _builder.Length;
+                int targetTop = _InputOriginTop + (_InputOriginLeft + totalInputLength - 1) / Console.WindowWidth;
+                int flushLine = Math.Max(0, Math.Min(targetTop + 1, Console.BufferHeight - 1));
+
+                Console.SetCursorPosition(0, flushLine);
+                Console.Write(new string(' ', Console.WindowWidth));
+                Console.SetCursorPosition(0, flushLine); // back to start of cleared line
+                _LastRenderLength = 0;
+            }
+
             /// <summary>
             /// Returns the length of the last word in the buffer.
             /// </summary>
@@ -649,73 +787,7 @@ namespace dsc_public
                 if (_BuilderIndex < _builder.Length)
                     _BuilderIndex++;
             }
-            /// <summary>
-            /// Clears the line immediately following the input line.
-            /// </summary>
-            private void FlushFinalLine()
-            {
-                int promptLength = Prompt.Length;
-                int totalInputLength = promptLength + _builder.Length;
-                int targetTop = _InputOriginTop + (_InputOriginLeft + totalInputLength) / Console.WindowWidth;
 
-                // Calculate the clean line position
-                int flushLine = Math.Min(targetTop + 1, Console.BufferHeight - 1);
-
-                // Clear the entire flush line to avoid prompt overwrites
-                Console.SetCursorPosition(0, flushLine);
-                Console.Write(new string(' ', Console.WindowWidth));
-                Console.SetCursorPosition(0, flushLine); // back to start of cleared line
-                //_LastRenderLength = totalInputLength;
-                _LastRenderLength = 0;
-
-            }
-            /// <summary>
-            /// Adjusts the tracked origin if the console has auto-scrolled.
-            /// </summary>
-            private void AdjustForConsoleScroll()
-            {
-                var (_, actualTop) = Console.GetCursorPosition();
-                int expectedBottom = _InputOriginTop + (_LastRenderLength + _InputOriginLeft) / Console.WindowWidth;
-
-                if (actualTop > expectedBottom)
-                {
-                    int delta = actualTop - expectedBottom;
-                    _InputOriginTop += delta;
-
-                    if (Debug > DebugLevel.Informational)
-                    {
-                        Messages.Add($"[DBG] Console auto-scrolled: expectedBottom={expectedBottom}, actualTop={actualTop}, adjusted _InputOriginTop to {_InputOriginTop}");
-                    }
-                }
-            }
-            /// <summary>
-            /// Moves the console cursor to match the logical buffer index.
-            /// </summary>
-            private void SetCursorToCurrentIndex()
-            {
-                int promptLength = this.Prompt.Length;
-                int cursorOffset = promptLength + _BuilderIndex;
-                int finalLeft = (_InputOriginLeft + cursorOffset) % Console.WindowWidth;
-                int finalTop = _InputOriginTop + (_InputOriginLeft + cursorOffset) / Console.WindowWidth;
-
-                Console.SetCursorPosition(
-                    Math.Min(finalLeft, Console.BufferWidth - 1),
-                    Math.Min(finalTop, Console.BufferHeight - 1)
-                );
-
-                if (Debug > DebugLevel.Informational)
-                {
-                    Messages.Add($"[DBG] Cursor updated: offset={cursorOffset}, top={finalTop}, left={finalLeft}");
-                }
-
-                if (Debug >= DebugLevel.Everything)
-                {
-                    var (x, y) = Console.GetCursorPosition();
-                    Console.SetCursorPosition(x, y);
-                    Console.Write('█'); // cursor marker
-                    Console.SetCursorPosition(x, y); // reset
-                }
-            }
             /// <summary>
             /// Processes a key input event and updates the buffer accordingly.
             /// </summary>
